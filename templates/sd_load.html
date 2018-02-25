@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">Where we came from</li>
+<li class="breadcrumb-item active">Where we are</li>
+{% endblock %}
+{% block content %}
+<p>{{test}}</p>
+<p>This is the page where we find out how much power your plan on using</p>
+<p>This is our load profile builder. How detailed do we want to be?</p>
+<p>The form below will take input from the user. YOU!</p>
+  <p>there needs to be a picture in here somewhere</p>
+<h3>{{form}}</h3>
+
+{% endblock %}
+
+//it may be a good idea to actually build a separate app for the load profile. Because we're gonna be adding, removing and developing items,
+//it may make more sense to just break it out. Use an "admin" like view for editing that information. Offer an easy portal for customers 
+//to directly edit their "database" of items, but reference our pre-populated one.
