@@ -1,0 +1,34 @@
+{% block botNav %}
+<nav class="navbar sd-nav navbar-toggleable-md navbar-inverse bg-inverse fixed-bottom">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#sdNavbar" aria-controls="sdNavbar" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <a class="navbar-brand hidden-lg-up" href="#">SystemDesigner</a>
+
+  <div class="collapse navbar-collapse" id="sdNavbar">
+    <ul class="navbar-nav nav-fill w-100 align-items-start">
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/summary/' in request.path %}active{% endif %}" href="{% url 'SD_summary' %}"><i class="far fa-list-alt"></i>Start<span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/load/' in request.path %}active{% endif %}" href="{% url 'SD_load' %}"><i class="fas fa-plug"></i>Load Profile</a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/locations/' in request.path %}active{% endif %}" href="{% url 'SD_locations' %}"><i class="fas fa-globe"></i>Locations</a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="navbar-brand hidden-md-down" href="{% url 'SDhome' %}">SystemDesigner</a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/preferences/' in request.path %}active{% endif %}" href="{% url 'SD_preferences' %}"><i class="fas fa-sliders-h"></i>Preferences</a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/install/' in request.path %}active{% endif %}" href="{% url 'SD_install' %}"><i class="fas fa-wrench"></i>Installation</a>
+      </li>
+      <li class="nav-item hvr-float">
+        <a class="nav-link {% if '/systemdesign/rec' in request.path %}active{% endif %}" href="{% url 'SD_recommendation' %}"><i class="fas fa-th"></i>Systems</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+{% endblock %}

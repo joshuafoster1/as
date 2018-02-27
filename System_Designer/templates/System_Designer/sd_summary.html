@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">Don't think we need these</li>
+<li class="breadcrumb-item active">In the system designer</li>
+{% endblock %}
+{% block content %}
+<p>{{test}}</p>
+<h2>This is the "Start" page for the system designer</h2>
+<h4>These are the things that should be done here</h4>
+<ul class="list-group">
+    <li class="list-group-item">
+        Identify which "build" they are working on
+    </li>
+    <li class="list-group-item">
+        Create or change "build"
+    </li>
+    <li class="list-group-item">
+        Build will likely be associated with a name or vehicle, e.g. "Tiny-Home" or "Sprinter" or "4Runner"
+    </li>
+    <li class="list-group-item">
+        select vehicle type for space/weight limitations?
+    </li>
+    <li class="list-group-item">
+        maybe identify build name in navbar based on selected build?
+    </li>
+    <li class="list-group-item">
+        tbc...
+    </li>
+</ul>
+
+
+{% include 'sdNavbar.html' %}
+{% endblock %}
+
+//is this the intro page?

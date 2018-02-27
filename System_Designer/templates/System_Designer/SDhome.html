@@ -1,21 +1,33 @@
 {% extends 'base.html' %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item">Where we came from</li>
 <li class="breadcrumb-item active">Where we are</li>
 {% endblock %}
 {% block content %}
+<div class="container">
+  <div class='jumbotron text-center'>
+    <a href=#>
+    <h1>System Designer</h1>
+    <p>The only comprehensive and instant solar system designer!</p>
+  </a>
+  </div>
+</div>
 <p>{{test}}</p>
 <div class="row">
     <div class="col-sm-4">
-      <h1> perhaps a place for basic designer?</h1>
+      <h4> perhaps a place for basic designer?</h4>
     </div>
     <div class="col-sm-4">
-      <h1> Picture Time?</h1>
+      <h4> Picture Time?</h4>
     </div>
     <div class="col-sm-4">
-      <h1> advanced designer</h1>
+      <h4> advanced designer</h4>
     </div>
 
 
 </div>
+
+{% include 'sdNavbar.html' %}
+
 {% endblock %}

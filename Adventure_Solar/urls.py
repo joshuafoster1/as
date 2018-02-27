@@ -21,4 +21,12 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', views.home, name='splash'),
     url(r'^systemdesign/', include('System_Designer.urls')),
+
+    #information and resources
+    url(r'^info/$', views.info, name="infoHome"),
+
+    #Store
+    url(r'^store/$', views.store, name="storeHome"),
+
+
 ]

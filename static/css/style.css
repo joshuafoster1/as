@@ -1,0 +1,23 @@
+body{
+    background: white;
+    font-family: Lato;
+  }
+
+.navbar{
+    border-radius: 0px;
+    font-family: Lato;
+}
+
+.navbar-brand{
+    font-family: Oswald;
+    font-size: 25px;
+}
+/*
+.main-nav{background-color: #14302e;}
+.main-nav .navbar-brand{color: #aae3ee}
+.main-nav .navbar-brand:hover{color: #ebebeb}
+
+.sd-nav{background-color: #6a969f}
+.sd-nav .navbar-brand{color: whitesmoke}
+.sd-nav .navbar-brand:hover{color: white} */
+
