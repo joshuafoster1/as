@@ -2,9 +2,10 @@
 from __future__ import unicode_literals
 
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.template import loader
-
+from .forms import *
+from .models import *
 
 # Create your views here.
 def SDhome(request):
@@ -12,7 +13,16 @@ def SDhome(request):
 
 
 def SD_load(request):
-    form = 'test'
+    if request.method == 'POST':
+        form = LoadAccessoryForm(request.POST)
+        if form.is_valid():
+            load_form = form.save(commit=False)
+            load_form.load = Load.objects.get(design_profile=current)
+            load_form.save()
+            return redirect('')
+    else:
+        form = LoadAccessoryForm()
+
     return render(request, 'System_Designer/sd_load.html', {'test':'test','form': form})
 
 def SD_preferences(request):

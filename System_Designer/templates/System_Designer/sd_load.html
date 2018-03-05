@@ -9,11 +9,20 @@
 <p>This is our load profile builder. How detailed do we want to be?</p>
 <p>The form below will take input from the user. YOU!</p>
   <p>there needs to be a picture in here somewhere</p>
-<h3>{{form}}</h3>
+<h3 class="mb-5">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include 'include/form.html' %}
+
+            <button type="submit" class="btn btn-success">Add Another Accessory!</button>
+            <a class="btn btn-success" href="{% url 'SD_locations' %}">Finished</a>
+
+          </form>
+</h3>
 
 {% include 'sdNavbar.html' %}
 {% endblock %}
 
 //it may be a good idea to actually build a separate app for the load profile. Because we're gonna be adding, removing and developing items,
-//it may make more sense to just break it out. Use an "admin" like view for editing that information. Offer an easy portal for customers 
+//it may make more sense to just break it out. Use an "admin" like view for editing that information. Offer an easy portal for customers
 //to directly edit their "database" of items, but reference our pre-populated one.
