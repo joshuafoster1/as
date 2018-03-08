@@ -10,6 +10,10 @@ from django.db import models
 ### design profile allows for multiple profiles per user
 class DesignProfile(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
+
+    profile_name = models.CharField(max_length=50)
+    system_level = models.CharField(max_length=10)
+
     #profile name -- we need to asign a name for the specific profile eg van, 4runner, etc...
     #load profile -- there will have to be an independent object with the loads for this vehicle. (a culmination of accessories)
     #variables for "options" set under the "preferences page. e.g. follows
@@ -21,7 +25,7 @@ class DesignProfile(models.Model):
         take peak load and max load parameters and determine the Battery bank
         to meet customer needs
         '''
-        pass 
+        pass
 
     def panel_selection(self):
         pass
@@ -30,15 +34,16 @@ class DesignProfile(models.Model):
 class VehicleInstall(models.Model):
     design_profile=models.ForeignKey(DesignProfile, related_name='vehicle_install')
     vehicle_type=models.CharField(max_length=30) # make a foriegn key for table
-    panel_type_preference = models.CharField(max_length=2)#f=fixed m=mounted b=both
+    panel_type_preference = models.CharField(max_length=1)#f=fixed m=mounted b=both
     #mountingSpace = [L,W] to be used for calculating panel space
 
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
-    accessory = models.CharField(max_length=30)
-    wattage = models.IntegerField()
-    amperes = models.IntegerField()
-    ac_dc = models.CharField(max_length=2)
+    accessory_name = models.CharField(max_length=30)
+    draw_volts = models.IntegerField()
+    draw_amps = models.IntegerField()
+    draw_watts = models.IntegerField()
+    ac_dc = models.BooleanField()
 
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
@@ -47,10 +52,10 @@ class PowerProduction(models.Model):
     #isolator -- boolean (does it charge while driving)
     #alternatorAmps -- output of the alternator (tied to isolator)
     #solar_panel -- this is gonna be the selected panel thats producing power
-    #solar_panel2 -- incase there are two different sized panels    
+    #solar_panel2 -- incase there are two different sized panels
     #generator -- this is going to have to be its own product with lots of variables to calculate on, if blank we need to ignore it.
     #solarLocation -- this is going to be a singular variable designed around this map. /static/img/solarProductionMap.jpeg the user will click their "worst case area of travel" which will just spit back a number. (covering hours/day of sunlight, and insulation)
-    
+
 
 
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
@@ -59,7 +64,7 @@ class Load(models.Model):
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
     days_autonomous = models.IntegerField()
-    
+
 
     def peak_load(self):
         '''
@@ -87,8 +92,10 @@ class Load(models.Model):
 ### linking table for many to many relationship
 class LoadAccessory(models.Model):
     load = models.ForeignKey(Load)
-    accessory = models.ForeignKey(Accessory) #name 
+    accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
+    quantity = models.IntegerField()
+
     #drawVolts
     #drawAmps
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
@@ -111,7 +118,7 @@ class LoadAccessory(models.Model):
 
         #charger [charger(bool y/n), dcOuputVoltage, outputAmperageContinuous, dcOutputVoltageFullLoad, maxPowerOutput(watts), inputVoltageRange[min, max], inputVoltageFrequency, maxAcCurrent, effenciency, operatingTemperatureRange[min, max] weight, dimensions[L, W, H] ]
 
-        #inverterCharger 
+        #inverterCharger
 
 
 ### TODO: need preferences table plus potential ref tables
