@@ -103,9 +103,67 @@ class LoadAccessory(models.Model):
     #def accessoryDraw -- this should be the primary output of the class.
     #accessoryAc_dc -- this will be the other output of the class.
 
-# class Product(models.Model):    (is it wise to make this globally instead of within the system designer as i'll also be using it nearly exclusively for the store webApp?--we'll talk about how this works)
-    #category [battery, panel, solarChargeController, inverter, charger, inverter/charger]
-        #battery [ahCapacity, voltage, operatingTempRange, maxChargeCurrent, floatChargeVoltage, equalizationVoltage, temperatureCompensationFactor(for charging), terminalType, weight, dimensions[L, W, H] ]
+class Category(models.Model):
+    name = models.CharField(max_length=200, db_index=True)
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.name
+
+class Product(models.Model):
+    #starting with generic information for all products
+    category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
+    name = models.CharField(max_length=200, db_index=True)
+    #image = models.ImageField(upload_to='#', blank=True)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock = models.PositiveIntegerField()
+    available = models.BooleanField(default=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    #adding component specific fields
+    #<----starting with battery---->
+    ahCapacity = models.PositiveIntegerField()
+    operatingVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
+    chargingCurrentMax = models.DecimalField(max_digits=4, decimal_places=1)
+    chargingCurrentFloat = models.DecimalField(max_digits=4, decimal_places=1)
+    chargingCurrentEqualize = models.DecimalField(max_digits=4, decimal_places=1)
+    chargingTempCompensation = models.DecimalField(max_digits=4, decimal_places=2)
+    terminalType = models.CharField(max_length=200)
+    weight = models.DecimalField(max_digits=6, decimal_places=2)
+    length = models.DecimalField(max_digits=4, decimal_places=2)
+    width = models.DecimalField(max_digits=4, decimal_places=2)
+    height = models.DecimalField(max_digits=4, decimal_places=2)
+
+    #<----then to modules---->
+    peakOutputWatts = models.IntegerField()
+    #operatingVoltage shared 
+    peakOutputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    peakOutputCurrent = models.DecimalField(max_digits=4, decimal_places=1)
+    openCircuitVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    shortCircuitCurrent = models.DecimalField(max_digits=4, decimal_places=1)
+    maxSystemVoltage = models.DecimalField(max_digits=5, decimal_places=1)
+    moduleEffeciency = models.DecimalField(max_digits=4, decimal_places=2)
+    #length, witdth, and height are shared
+    connectorType = models.CharField(max_length=200)
+    numberOfCells = models.IntegerField()
+    #operatingTempMax and Min shared
+
+    #<----solar charge controllers---->
+    conversionType = models.CharField(max_length=200)
+
+
+    
+
+
+    #battery =  [ahCapacity, voltage, operatingTempRange, chargingCurrentMax, chargingCurrentFloat, chargingCurrentEqualize, chargingTempCompensation(for charging), terminalType, weight, dimensions[L, W, H] ]
 
         #module(panel) [peakPower(watts), nominalVoltage, maxVoltage, maxCurrent(amps), openCircuitVoltage, shortCircuitCurrent, maxSysVoltage, moduleEffeciency, dimensions[L, W, H], weight, connectorType, numberOfCells, operatingTemperatureRange[min, max]]
 
