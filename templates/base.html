@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/hover.css' %}">
     <!--<link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}"> Commented out to ensure was on most recent bootstrap 4-->
-    
+
     <!-- {% block stylesheet %}{% endblock %} -->
   </head>
   <body>
@@ -23,7 +23,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <a class="navbar-brand" href="{% url 'splash' %}">AdventureSolar</a>
-    
+
       <!-- mainMenu Items -->
       <div class="collapse navbar-collapse" id="menuBar">
         <ul class="navbar-nav mr-auto">
@@ -33,7 +33,7 @@
                 </a>
             </li>
             <li class="nav-item hvr-underline-from-center">
-                <a class="nav-link {% if '/systemdesign/' in request.path %}active{% endif %}" href="{% url 'SDhome' %}">
+                <a class="nav-link {% if '/systemdesign/' in request.path %}active{% endif %}" href="{% url 'SD_home' %}">
                   <span class="fas fa-th"></span>&nbsp; System Designer
                 </a>
             </li>
@@ -56,15 +56,15 @@
             </a>
           </li>
         </ul>
-        
+
         <form class="form-inline my-2 my-lg-0">
           <div class="nav-item">
             <input class="form-control mr-sm-2" type="text" placeholder="Search Website">
             <button class="btn btn-outline-info my-2 my-sm-0" type="submit"><span class="fas fa-search"></span></button>
           </div>
         </form>
-               
-      
+
+
         <div class="navbar-nav">
           {% if user.is_authenticated %}
               <ul class="navbar-nav my-2 my-lg-0">
@@ -88,8 +88,8 @@
           {% endif %}
         </div>
       </div>
-      
-      
+
+
     </nav>
 
     {% block body %}
@@ -114,7 +114,7 @@
   </body>
 </html>
 
-        <!-- Moved this hear to clean it up until I figure out how to re-implement, lol 
+        <!-- Moved this hear to clean it up until I figure out how to re-implement, lol
         <div class="collapse navbar-collapse" id="mainMenu">
           {% if user.is_authenticated %}
               <ul class="navbar-nav ml-auto">

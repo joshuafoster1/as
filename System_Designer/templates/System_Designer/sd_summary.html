@@ -27,6 +27,17 @@
         tbc...
     </li>
 </ul>
+<div>
+  <h3 class="mb-5">
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {% include 'include/form.html' %}
+
+              <button type="submit" class="btn btn-success">Confirm</button>
+              <a class="btn btn-success" href="{% url 'SD_locations' %}">Finished</a>
+
+            </form>
+  </h3></div>
 
 
 {% include 'sdNavbar.html' %}

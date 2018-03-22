@@ -8,17 +8,30 @@ from django.db import models
 # Create your models here.
 
 ### design profile allows for multiple profiles per user
+class SystemLevel(models.Model):
+    level = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.level
+
 class DesignProfile(models.Model):
+    name = models.CharField(max_length=50)
+    system_level = models.ForeignKey(SystemLevel)
     user = models.ForeignKey(User,on_delete=models.CASCADE)
 
-    profile_name = models.CharField(max_length=50)
-    system_level = models.CharField(max_length=10)
+    def __str__(self):
+        return self.name
+
+class UserDesignProfile(models.Model):
+    user = models.ForeignKey(User,on_delete=models.CASCADE)
+    profile_name = models.ForeignKey(DesignProfile)
 
     #profile name -- we need to asign a name for the specific profile eg van, 4runner, etc...
     #load profile -- there will have to be an independent object with the loads for this vehicle. (a culmination of accessories)
     #variables for "options" set under the "preferences page. e.g. follows
         #batteryMonitoringSystem -- bool does this have a battery monitor
         #systemLevel -- Good, better, best; Silver, Gold, PLATNUM (this will effect cost directly)
+
 
     def battery_selection(self):
         '''
@@ -29,6 +42,9 @@ class DesignProfile(models.Model):
 
     def panel_selection(self):
         pass
+
+    def __str__(self):
+        return self.profile_name.name
 ###add lookup table for vehivcle type rough dimesion
 
 class VehicleInstall(models.Model):
@@ -37,14 +53,18 @@ class VehicleInstall(models.Model):
     panel_type_preference = models.CharField(max_length=1)#f=fixed m=mounted b=both
     #mountingSpace = [L,W] to be used for calculating panel space
 
+    def __str__(self):
+        return self.vehicle_type
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
-    accessory_name = models.CharField(max_length=30)
+    name = models.CharField(max_length=30)
     draw_volts = models.IntegerField()
     draw_amps = models.IntegerField()
     draw_watts = models.IntegerField()
     ac_dc = models.BooleanField()
 
+    def __str__(self):
+        return self.name
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
     winter_camping = models.BooleanField() #default no?
@@ -55,16 +75,21 @@ class PowerProduction(models.Model):
     #solar_panel2 -- incase there are two different sized panels
     #generator -- this is going to have to be its own product with lots of variables to calculate on, if blank we need to ignore it.
     #solarLocation -- this is going to be a singular variable designed around this map. /static/img/solarProductionMap.jpeg the user will click their "worst case area of travel" which will just spit back a number. (covering hours/day of sunlight, and insulation)
+    days_autonomous = models.IntegerField()
 
-
+    def total(self):
+        return 'calcuted output'
+    def __str__(self):
+        return str(self.total())
 
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
 #all of the accessories and things like winter camping(time of year), location(latitude), and....maybe thats it?
 class Load(models.Model):
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
-    days_autonomous = models.IntegerField()
 
+    def __str__(self):
+        return self.design_profile.name + " Load"
 
     def peak_load(self):
         '''
@@ -96,6 +121,8 @@ class LoadAccessory(models.Model):
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
 
+    def __str__(self):
+        return self.load.design_profile.name + ' ' + self.accessory.name
     #drawVolts
     #drawAmps
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
@@ -144,7 +171,7 @@ class Product(models.Model):
 
     #<----then to modules---->
     peakOutputWatts = models.IntegerField()
-    #operatingVoltage shared 
+    #operatingVoltage shared
     peakOutputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     peakOutputCurrent = models.DecimalField(max_digits=4, decimal_places=1)
     openCircuitVoltage = models.DecimalField(max_digits=4, decimal_places=1)
@@ -160,7 +187,8 @@ class Product(models.Model):
     conversionType = models.CharField(max_length=200)
 
 
-    
+    def __str__(self):
+        return self.name
 
 
     #battery =  [ahCapacity, voltage, operatingTempRange, chargingCurrentMax, chargingCurrentFloat, chargingCurrentEqualize, chargingTempCompensation(for charging), terminalType, weight, dimensions[L, W, H] ]

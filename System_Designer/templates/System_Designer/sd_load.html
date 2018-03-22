@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% load django_tables2 %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item">Where we came from</li>
 <li class="breadcrumb-item active">Where we are</li>
@@ -8,7 +10,11 @@
 <p>This is the page where we find out how much power your plan on using</p>
 <p>This is our load profile builder. How detailed do we want to be?</p>
 <p>The form below will take input from the user. YOU!</p>
-  <p>there needs to be a picture in here somewhere</p>
+<p>there needs to be a picture in here somewhere</p>
+<p>Add a table to display all the accesories, create column to modify an accessory</p>
+
+{% render_table table %}
+
 <h3 class="mb-5">
           <form method="post" novalidate>
             {% csrf_token %}
