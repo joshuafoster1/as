@@ -9,12 +9,20 @@ from django.db import models
 
 ### design profile allows for multiple profiles per user
 class SystemLevel(models.Model):
+    """
+    Lookup table
+    """
     level = models.CharField(max_length=20)
 
     def __str__(self):
         return self.level
 
 class DesignProfile(models.Model):
+    """
+    This model is the container/tag that relates all associated elements for
+    a system
+    """
+
     name = models.CharField(max_length=50)
     system_level = models.ForeignKey(SystemLevel)
     user = models.ForeignKey(User,on_delete=models.CASCADE)
@@ -23,6 +31,10 @@ class DesignProfile(models.Model):
         return self.name
 
 class UserDesignProfile(models.Model):
+    """
+    This model holds in it's profile name value the current profile the
+    user is working on
+    """
     user = models.ForeignKey(User,on_delete=models.CASCADE)
     profile_name = models.ForeignKey(DesignProfile)
 
@@ -57,16 +69,21 @@ class VehicleInstall(models.Model):
         return self.vehicle_type
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
+    """
+    Lookup table for individual accessories
+    """
+
     name = models.CharField(max_length=30)
     draw_volts = models.IntegerField()
     draw_amps = models.IntegerField()
     draw_watts = models.IntegerField()
-    ac_dc = models.BooleanField()
+    alternating_current = models.BooleanField()
 
     def __str__(self):
         return self.name
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
+
     winter_camping = models.BooleanField() #default no?
     vehicular_moves = models.IntegerField() #directly tied to "isolator"
     #isolator -- boolean (does it charge while driving)
@@ -85,11 +102,15 @@ class PowerProduction(models.Model):
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
 #all of the accessories and things like winter camping(time of year), location(latitude), and....maybe thats it?
 class Load(models.Model):
+    """
+    Linking model for many to many relationship of accessories to the design Profile
+    """
+
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
 
     def __str__(self):
-        return self.design_profile.name + " Load"
+        return self.design_profile.profile_name.name + " Load"
 
     def peak_load(self):
         '''
@@ -116,13 +137,16 @@ class Load(models.Model):
 
 ### linking table for many to many relationship
 class LoadAccessory(models.Model):
+    """
+    Linking table for many to many relationship of accessories to load.
+    """
     load = models.ForeignKey(Load)
     accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
 
     def __str__(self):
-        return self.load.design_profile.name + ' ' + self.accessory.name
+        return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
     #drawVolts
     #drawAmps
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
@@ -142,6 +166,9 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
+    ### We are going to need to normalize this model/table.
+    ### THis means we need to hash out the details of how to organize the information
+    ### and create a better table structure.
     #starting with generic information for all products
     category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
     name = models.CharField(max_length=200, db_index=True)

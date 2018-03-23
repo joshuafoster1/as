@@ -19,3 +19,8 @@ class ProfileForm(forms.ModelForm):
         user_pk = kwargs.pop('user_pk')
         super(ProfileForm, self).__init__(*args, **kwargs)
         self.fields['profile_name'].queryset =DesignProfile.objects.filter(user=user_pk)
+
+class CreateDesignProfileForm(forms.ModelForm):
+    class Meta:
+        model = DesignProfile
+        fields = ['name', 'system_level']
