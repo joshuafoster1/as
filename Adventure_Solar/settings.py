@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'System_Designer',
     'import_export',
     'django_tables2',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -134,6 +135,6 @@ STATICFILES_DIRS = [
 
 # added elements to settings.py
 LOGIN_URL = 'login'
-LOGOUT_REDIRECT_URL = 'home'
-LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'splash'
+LOGIN_REDIRECT_URL = 'splash'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

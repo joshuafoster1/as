@@ -48,3 +48,7 @@ class DesignProfileAdmin(ImportExportModelAdmin):
 @admin.register(SystemLevel)
 class SystemLevelAdmin(ImportExportModelAdmin):
     pass
+
+@admin.register(Customer)
+class CustomerAdmin(ImportExportModelAdmin):
+    pass

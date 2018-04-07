@@ -8,6 +8,7 @@ from django.db import models
 # Create your models here.
 
 ### design profile allows for multiple profiles per user
+
 class SystemLevel(models.Model):
     """
     Lookup table
@@ -29,7 +30,12 @@ class DesignProfile(models.Model):
 
     def __str__(self):
         return self.name
+class Customer(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    current_design_profile = models.ForeignKey(DesignProfile, null=True, blank=True)
 
+    def __str__(self):
+        return self.user.username
 class UserDesignProfile(models.Model):
     """
     This model holds in it's profile name value the current profile the

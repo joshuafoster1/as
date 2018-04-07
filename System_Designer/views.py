@@ -10,6 +10,11 @@ from .tables import *
 from django_tables2 import RequestConfig
 
 # Create your views here.
+def get_customer(request):
+    pk = request.user.pk
+    customer = Customer.objects.get(user__pk=pk)
+    return customer
+
 def get_user_DPs(request):
     pk = request.user.pk
     user_DP = DesignProfile.objects.filter(user__pk=pk)
@@ -26,19 +31,19 @@ def SDhome(request):
 
 
 def SD_load(request):
-    user_DP = get_current_user_DP(request)
-    connect_to_load = user_DP.profile_name
-    print(user_DP)
+    customer = get_customer(request)
+    connect_to_load = customer.current_design_profile
+
     if request.method == 'POST':
         form = LoadAccessoryForm(request.POST)
         if form.is_valid():
             load_form = form.save(commit=False)
-            load_form.load, created = Load.objects.get_or_create(design_profile=DesignProfile.objects.get(name=user_DP.profile_name))
+            load_form.load, created = Load.objects.get_or_create(design_profile=DesignProfile.objects.get(name=connect_to_load))
             load_form.save()
             return redirect('SD_load')
     else:
         form = LoadAccessoryForm()
-        table_data = LoadAccessory.objects.all().filter(load__design_profile__name=user_DP.profile_name)
+        table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
         table = AccessoryTable(table_data)
         RequestConfig(request).configure(table)
     return render(request, 'System_Designer/sd_load.html', {'table': table, 'test':'test','form': form})
@@ -53,30 +58,28 @@ def SD_install(request):
     return render(request, 'System_Designer/sd_install.html', {'test':'test', 'form': form})
 
 def SD_summary(request):
-    user_DPs = get_user_DPs(request)
-    user_DP = get_current_user_DP(request)
-    print(user_DP.user)
+    customer = get_customer(request)
     if request.method == 'POST':
-        form = ProfileForm(request.POST, user_pk = user_DP.user.pk)
+        form = ProfileForm(request.POST, user_pk = customer.user.pk)
         if form.is_valid():
-            user_DP.profile_name = form.cleaned_data['profile_name']
-            user_DP.save()
-            print(user_DP.user, user_DP)
+            customer.current_design_profile = form.cleaned_data['profile_name']
+            customer.save()
             return redirect('SD_load')
     else:
-        form = ProfileForm(user_pk = user_DP.user.pk)
+        form = ProfileForm(user_pk = customer.user.pk)
     return render(request, 'System_Designer/sd_summary.html', {'form': form})
 
 def create_DP(request):
-    user_DP = get_current_user_DP(request)
+    customer = get_customer(request)
+
     if request.method == 'POST':
         form = CreateDesignProfileForm(request.POST)
         if form.is_valid():
             new_DP = form.save(commit=False)
-            new_DP.user = User.objects.get(pk = user_DP.user.pk)
+            new_DP.user = User.objects.get(pk = customer.user.pk)
             new_DP.save()
-            user_DP.profile_name = new_DP
-            user_DP.save()
+            customer.current_design_profile = new_DP
+            customer.save()
             return redirect('SD_load')
     else:
         form = CreateDesignProfileForm()
