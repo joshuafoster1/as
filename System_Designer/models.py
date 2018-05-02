@@ -153,6 +153,8 @@ class LoadAccessory(models.Model):
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
+
+    #### Parameters for a custom accessory 
     #drawVolts
     #drawAmps
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
