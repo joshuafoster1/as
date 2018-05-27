@@ -9,7 +9,7 @@ class PowerProductionForm(forms.ModelForm):
 class LoadAccessoryForm(forms.ModelForm):
     class Meta:
         model = LoadAccessory
-        fields = ['accessory', 'estimated_usage', 'quantity']
+        fields = ['accessory', 'estimated_usage', 'quantity', 'drawVoltage', 'drawAmperage', 'drawWatts', 'isAc']
 
 class ProfileForm(forms.ModelForm):
     class Meta:
@@ -24,3 +24,8 @@ class CreateDesignProfileForm(forms.ModelForm):
     class Meta:
         model = DesignProfile
         fields = ['name', 'system_level']
+
+class CustomAccessoryForm(forms.Form):
+    class Meta:
+        model = Accessory
+        fields = ['name','draw_watts', 'draw_amps', 'draw_volts', 'alternating_current']

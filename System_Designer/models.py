@@ -87,6 +87,7 @@ class Accessory(models.Model):
 
     def __str__(self):
         return self.name
+
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
 
@@ -118,22 +119,31 @@ class Load(models.Model):
     def __str__(self):
         return self.design_profile.profile_name.name + " Load"
 
-    def peak_load(self):
+    def get_accessory_amp_calcs(self):
         '''
         Take all accesories and calculate the peak load potential for the system.
+        Calculates the total amp*hours for all accessories to be used on the system.
+
+        Battery storage must be at minimum 2 x daily_Ah, but likely higher.
 
         BD - this will be used primarily to calculate if the battery bank can handle a full blown draw (dont want to
         exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
         '''
-        pass
 
-    def estimated_daily_Ah(self):
-        '''
-        Calculates the total amp*hours for all accessories to be used on the system.
-        '''
-        pass
+        accessories = LoadAccessory.objects.filter(load=self)
 
-    def estimated_recharge_capacity(self):
+        peak_amps = 0
+        for accessory in accesories:
+            peak_amps += accessory.accessory.amps * accessory.quantity
+
+        daily_Ah = 0
+        for accessory in accesories:
+            daily_Ah += accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+
+        return {'peak_amps': total_amps, 'daily_AH':daily_Ah}
+
+
+    def estimated_recharge_potential(self):
         '''
         estimate the likely recharge needs based on latitude, winter camoing potential
         vehicular moves.
@@ -150,11 +160,14 @@ class LoadAccessory(models.Model):
     accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
+    drawVoltage = models.DecimalField(max_digits=10, decimal_places=4)
+    drawAmperage = models.DecimalField(max_digits=10, decimal_places=4)
+    drawWatts = models.DecimalField(max_digits=10, decimal_places=4)
+    isAc = models.BooleanField(default=False)
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
-    #drawVolts
-    #drawAmps
+   
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.
@@ -217,7 +230,7 @@ class batteryProduct(Product):
         return self.name
 
 class moduleProduct(Product):
-    
+
     peakOutputWatts = models.IntegerField()
     operatingVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     peakOutputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
@@ -253,7 +266,7 @@ class chargeControllerProduct(Product):
     wireSizeOut = models.DecimalField(max_digits=4, decimal_places=1)
     batteryTemperatureSensor = models.BooleanField(default=True)
     chargeModes = models.CharField(max_length=200)
-    
+
     #accessories[groundFaultProtection, remoteTemperatureSensor, remoteMeter, communicationAdapter, meterHub, relayDriver ]
 
 class inverterProduct(Product):
@@ -281,11 +294,11 @@ class inverterProduct(Product):
     acRecepticles = models.BooleanField(default=True)
     operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
     operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
-    
+
 
     def __str__(self):
         return self.name
-        
+
 class chargerProduct(Product):
 
     dcOuputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
