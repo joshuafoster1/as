@@ -130,17 +130,20 @@ class Load(models.Model):
         exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
         '''
 
-        accessories = LoadAccessory.objects.filter(load=self)
+        accessories = list(LoadAccessory.objects.filter(load=self))
 
         peak_amps = 0
+        dc_daily_Ah = 0
+        ac_daily_Ah = 0
         for accessory in accesories:
             peak_amps += accessory.accessory.amps * accessory.quantity
+            if accessory.accessory.alternating_current:
+                ac_daily_Ah +=accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+            else:
+                daily_Ah += accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+        daily_Ah = flt(ac_daily_Ah) * 120 / .9 + dc_daily_Ah
 
-        daily_Ah = 0
-        for accessory in accesories:
-            daily_Ah += accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
-
-        return {'peak_amps': total_amps, 'daily_AH':daily_Ah}
+        return {'peak_amps': peak_amps, 'daily_AH':daily_Ah}
 
 
     def estimated_recharge_potential(self):
@@ -167,7 +170,7 @@ class LoadAccessory(models.Model):
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
-   
+
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.
