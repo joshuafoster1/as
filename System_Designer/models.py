@@ -76,7 +76,9 @@ class VehicleInstall(models.Model):
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
     """
-    Lookup table for individual accessories
+    Lookup table for individual accessories. General accessories have no user ForeignKey.
+    Custom accessories contain Customer ForeignKey to identify the accessor to the
+    customer.
     """
 
     name = models.CharField(max_length=30)
@@ -91,7 +93,9 @@ class Accessory(models.Model):
 
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
-
+    """
+    Profile Attributes that contribute to recharging the system.
+    """
     winter_camping = models.BooleanField() #default no?
     vehicular_moves = models.IntegerField() #directly tied to "isolator"
     #isolator -- boolean (does it charge while driving)
@@ -100,7 +104,6 @@ class PowerProduction(models.Model):
     #solar_panel2 -- incase there are two different sized panels
     #generator -- this is going to have to be its own product with lots of variables to calculate on, if blank we need to ignore it.
     #solarLocation -- this is going to be a singular variable designed around this map. /static/img/solarProductionMap.jpeg the user will click their "worst case area of travel" which will just spit back a number. (covering hours/day of sunlight, and insulation)
-    days_autonomous = models.IntegerField()
 
     def total(self):
         return 'calcuted output'
@@ -116,6 +119,7 @@ class Load(models.Model):
 
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
+    days_autonomous = models.IntegerField()
 
     def __str__(self):
         return self.design_profile.profile_name.name + " Load"
