@@ -13,7 +13,7 @@ from .models import *
 class AccessoryAdmin(ImportExportModelAdmin):
     pass
 
-@admin.register(Product)
+@admin.register(batteryProduct)
 class ProductAdmin(ImportExportModelAdmin):
     pass
 

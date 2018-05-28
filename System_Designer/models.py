@@ -87,6 +87,7 @@ class Accessory(models.Model):
 
     def __str__(self):
         return self.name
+
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
 
@@ -118,22 +119,34 @@ class Load(models.Model):
     def __str__(self):
         return self.design_profile.profile_name.name + " Load"
 
-    def peak_load(self):
+    def get_accessory_amp_calcs(self):
         '''
         Take all accesories and calculate the peak load potential for the system.
+        Calculates the total amp*hours for all accessories to be used on the system.
+
+        Battery storage must be at minimum 2 x daily_Ah, but likely higher.
 
         BD - this will be used primarily to calculate if the battery bank can handle a full blown draw (dont want to
         exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
         '''
-        pass
 
-    def estimated_daily_Ah(self):
-        '''
-        Calculates the total amp*hours for all accessories to be used on the system.
-        '''
-        pass
+        accessories = list(LoadAccessory.objects.filter(load=self))
 
-    def estimated_recharge_capacity(self):
+        peak_amps = 0
+        dc_daily_Ah = 0
+        ac_daily_Ah = 0
+        for accessory in accesories:
+            peak_amps += accessory.accessory.amps * accessory.quantity
+            if accessory.accessory.alternating_current:
+                ac_daily_Ah +=accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+            else:
+                daily_Ah += accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+        daily_Ah = flt(ac_daily_Ah) * 120 / .9 + dc_daily_Ah
+
+        return {'peak_amps': peak_amps, 'daily_AH':daily_Ah}
+
+
+    def estimated_recharge_potential(self):
         '''
         estimate the likely recharge needs based on latitude, winter camoing potential
         vehicular moves.
@@ -150,13 +163,20 @@ class LoadAccessory(models.Model):
     accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
+    drawVoltage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Voltage')
+    drawAmperage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Amps')
+    drawWatts = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Watts')
+    isAc = models.BooleanField(default=False, verbose_name='AC Load')
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
 
+<<<<<<< HEAD
     #### Parameters for a custom accessory 
     #drawVolts
     #drawAmps
+=======
+>>>>>>> Bdev
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.
@@ -177,9 +197,12 @@ class Product(models.Model):
     ### We are going to need to normalize this model/table.
     ### THis means we need to hash out the details of how to organize the information
     ### and create a better table structure.
-    #starting with generic information for all products
+
+    #Create the primary product class that holds all of the BASIC and universal information
     category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
     name = models.CharField(max_length=200, db_index=True)
+    brand = models.CharField(max_length=200)
+    model = models.CharField(max_length=200)
     #image = models.ImageField(upload_to='#', blank=True)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -187,9 +210,20 @@ class Product(models.Model):
     available = models.BooleanField(default=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    weight = models.DecimalField(max_digits=6, decimal_places=2)
+    length = models.DecimalField(max_digits=4, decimal_places=2)
+    width = models.DecimalField(max_digits=4, decimal_places=2)
+    height = models.DecimalField(max_digits=4, decimal_places=2)
+    warranty = models.TextField(blank=True)
+    mfgPartNumber = models.CharField(max_length=200)
 
-    #adding component specific fields
-    #<----starting with battery---->
+    def __str__(self):
+        return self.name
+
+    #Now creating subclasses which inherit all attributes from Product class
+    #Add product type specific attributes
+class batteryProduct(Product):
+
     ahCapacity = models.PositiveIntegerField()
     operatingVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
@@ -199,47 +233,134 @@ class Product(models.Model):
     chargingCurrentEqualize = models.DecimalField(max_digits=4, decimal_places=1)
     chargingTempCompensation = models.DecimalField(max_digits=4, decimal_places=2)
     terminalType = models.CharField(max_length=200)
-    weight = models.DecimalField(max_digits=6, decimal_places=2)
-    length = models.DecimalField(max_digits=4, decimal_places=2)
-    width = models.DecimalField(max_digits=4, decimal_places=2)
-    height = models.DecimalField(max_digits=4, decimal_places=2)
 
-    #<----then to modules---->
+
+    def __str__(self):
+        return self.name
+
+class moduleProduct(Product):
+
     peakOutputWatts = models.IntegerField()
-    #operatingVoltage shared
+    operatingVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     peakOutputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     peakOutputCurrent = models.DecimalField(max_digits=4, decimal_places=1)
     openCircuitVoltage = models.DecimalField(max_digits=4, decimal_places=1)
     shortCircuitCurrent = models.DecimalField(max_digits=4, decimal_places=1)
     maxSystemVoltage = models.DecimalField(max_digits=5, decimal_places=1)
     moduleEffeciency = models.DecimalField(max_digits=4, decimal_places=2)
-    #length, witdth, and height are shared
     connectorType = models.CharField(max_length=200)
     numberOfCells = models.IntegerField()
-    #operatingTempMax and Min shared
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
+    wireSizeOut = models.DecimalField(max_digits=4, decimal_places=1)
 
-    #<----solar charge controllers---->
+    def __str__(self):
+        return self.name
+
+class chargeControllerProduct(Product):
+
     conversionType = models.CharField(max_length=200)
+    maxBattCurrent = models.DecimalField(max_digits=4, decimal_places=1)
+    loadCurrentRating = models.DecimalField(max_digits=4, decimal_places=1)
+    openCircuitVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    peakEffieciency = models.DecimalField(max_digits=4, decimal_places=1)
+    batteryVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    batteryVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    voltageAccuracy = models.DecimalField(max_digits=4, decimal_places=1)
+    selfConsumption = models.DecimalField(max_digits=4, decimal_places=1)
+    surgeProtection = models.BooleanField(default=True)
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
+    wireSizeIn = models.DecimalField(max_digits=4, decimal_places=1)
+    wireSizeOut = models.DecimalField(max_digits=4, decimal_places=1)
+    batteryTemperatureSensor = models.BooleanField(default=True)
+    chargeModes = models.CharField(max_length=200)
+
+    #accessories[groundFaultProtection, remoteTemperatureSensor, remoteMeter, communicationAdapter, meterHub, relayDriver ]
+
+class inverterProduct(Product):
+
+    outputWattsContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    outputWattsSurge = models.DecimalField(max_digits=4, decimal_places=1)
+    outputCurrentContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    outputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    outputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    outputFreqency = models.DecimalField(max_digits=4, decimal_places=1)
+    outputWaveform = models.CharField(max_length=200)
+    effeciencyFullLoad = models.DecimalField(max_digits=4, decimal_places=1)
+    effeciencyPeak = models.DecimalField(max_digits=4, decimal_places=1)
+    noLoadDraw = models.DecimalField(max_digits=4, decimal_places=1)
+    offModeDraw = models.DecimalField(max_digits=4, decimal_places=1)
+    acInputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    acInputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    acTransferRelayAmps = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    batteryVoltageNominal = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutLow = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutMid = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutHigh = models.DecimalField(max_digits=4, decimal_places=1)
+    acRecepticles = models.BooleanField(default=True)
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
 
 
     def __str__(self):
         return self.name
 
+class chargerProduct(Product):
 
-    #battery =  [ahCapacity, voltage, operatingTempRange, chargingCurrentMax, chargingCurrentFloat, chargingCurrentEqualize, chargingTempCompensation(for charging), terminalType, weight, dimensions[L, W, H] ]
+    dcOuputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    outputAmperageContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    dcOutputVoltageFullLoad = models.DecimalField(max_digits=4, decimal_places=1)
+    maxPowerOutput = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageFrequency = models.IntegerField()
+    maxAcCurrent = models.DecimalField(max_digits=4, decimal_places=1)
+    effeciency = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
 
-        #module(panel) [peakPower(watts), nominalVoltage, maxVoltage, maxCurrent(amps), openCircuitVoltage, shortCircuitCurrent, maxSysVoltage, moduleEffeciency, dimensions[L, W, H], weight, connectorType, numberOfCells, operatingTemperatureRange[min, max]]
+    def __str__(self):
+        return self.name
 
-        #solarChargeController(sCC?) [conversionType(PWM or MPPT), maxBattCurrent, loadCurrentRating, openCircuitVoltage, peakEffieciency, batteryVoltageRange[min, max], voltageAccuracy, selfConsumption, surgeProtection, operatingTemperatureRange[min, max]
-        #                               weight, dimensions[L, W, H], wireSizeIn, wireSizeOut, batteryTemperatureSensor, chargeModes[(dynamic list of modes?)]warranty, mfgPartNumber
-        #                               accessories[groundFaultProtection, remoteTemperatureSensor, remoteMeter, communicationAdapter, meterHub, relayDriver, ]]
+class inverterChargerProduct(Product):
 
-        #inverter [inverter(bool y/n), outputWattsContinuous, outputWattsSurge, outputCurrentContinuous, outputVoltageRange[min, max], outputFreqency, outputWaveform, effeciencyFullLoad, effeciencyPeak, noLoadDraw, offModeDraw, acInputVoltageRange[min, max]
-        #           acTransferRelayAmps, inputVoltageRange[min, max] batteryVoltageNominal, lowBatteryCutout[low, mid, high] acRecepticles, operatingTemperatureRange[min, max] weight, dimensions[L, W, H] warranty, mfgPartNumber ]
+    outputWattsContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    outputWattsSurge = models.DecimalField(max_digits=4, decimal_places=1)
+    outputCurrentContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    outputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    outputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    outputFreqency = models.DecimalField(max_digits=4, decimal_places=1)
+    outputWaveform = models.CharField(max_length=200)
+    effeciencyFullLoad = models.DecimalField(max_digits=4, decimal_places=1)
+    effeciencyPeak = models.DecimalField(max_digits=4, decimal_places=1)
+    noLoadDraw = models.DecimalField(max_digits=4, decimal_places=1)
+    offModeDraw = models.DecimalField(max_digits=4, decimal_places=1)
+    acInputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    acInputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    acTransferRelayAmps = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMin = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageMax = models.DecimalField(max_digits=4, decimal_places=1)
+    batteryVoltageNominal = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutLow = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutMid = models.DecimalField(max_digits=4, decimal_places=1)
+    lowBatteryCutoutHigh = models.DecimalField(max_digits=4, decimal_places=1)
+    acRecepticles = models.BooleanField(default=True)
+    operatingTempMax = models.DecimalField(max_digits=4, decimal_places=1)
+    operatingTempMin = models.DecimalField(max_digits=4, decimal_places=1)
+    dcOuputVoltage = models.DecimalField(max_digits=4, decimal_places=1)
+    outputAmperageContinuous = models.DecimalField(max_digits=4, decimal_places=1)
+    dcOutputVoltageFullLoad = models.DecimalField(max_digits=4, decimal_places=1)
+    maxPowerOutput = models.DecimalField(max_digits=4, decimal_places=1)
+    inputVoltageFrequency = models.IntegerField()
+    maxAcCurrent = models.DecimalField(max_digits=4, decimal_places=1)
+    effeciency = models.DecimalField(max_digits=4, decimal_places=1)
 
-        #charger [charger(bool y/n), dcOuputVoltage, outputAmperageContinuous, dcOutputVoltageFullLoad, maxPowerOutput(watts), inputVoltageRange[min, max], inputVoltageFrequency, maxAcCurrent, effenciency, operatingTemperatureRange[min, max] weight, dimensions[L, W, H] ]
+    def __str__(self):
+        return self.name
 
-        #inverterCharger
 
 
 ### TODO: need preferences table plus potential ref tables

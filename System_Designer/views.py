@@ -43,9 +43,11 @@ def SD_load(request):
             return redirect('SD_load')
     else:
         form = LoadAccessoryForm()
-        table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
-        table = AccessoryTable(table_data)
-        RequestConfig(request).configure(table)
+
+    table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
+    table = AccessoryTable(table_data)
+    RequestConfig(request).configure(table)
+
     return render(request, 'System_Designer/sd_load.html', {'table': table, 'test':'test','form': form})
 
 def SD_preferences(request):
@@ -90,3 +92,13 @@ def SD_recomendation(request):
 
 def SD_locations(request):
     return render(request, 'System_Designer/sd_locations.html', {'test':'test'})
+
+def custom_accessory(request):
+    if request.method =='POST':
+        form = CustomAccessoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('SD_load')
+    else:
+        form=CustomAccessoryForm()
+    return render(request, 'System_Designer/create_DP.html', {'form':form})
