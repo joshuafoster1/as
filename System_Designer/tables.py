@@ -13,5 +13,5 @@ class AccessoryTable(tables.Table):
     class Meta:
         model = LoadAccessory
         template_name = 'django_tables2/bootstrap-responsive.html'
-        fields = ['accessory', 'estimated_usage', 'quantity']
+        fields = ['accessory', 'estimated_usage', 'quantity', 'drawVoltage', 'drawAmperage', 'drawWatts', 'isAc']
         

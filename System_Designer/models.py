@@ -160,10 +160,10 @@ class LoadAccessory(models.Model):
     accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
-    drawVoltage = models.DecimalField(max_digits=10, decimal_places=4)
-    drawAmperage = models.DecimalField(max_digits=10, decimal_places=4)
-    drawWatts = models.DecimalField(max_digits=10, decimal_places=4)
-    isAc = models.BooleanField(default=False)
+    drawVoltage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Voltage')
+    drawAmperage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Amps')
+    drawWatts = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Watts')
+    isAc = models.BooleanField(default=False, verbose_name='AC Load')
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
