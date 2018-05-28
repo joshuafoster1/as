@@ -16,7 +16,8 @@
 </p>
 
 
-{% render_table table %}
+  {% render_table table %}
+
 
 <h3 class="mb-5">
           <form method="post" novalidate>
@@ -24,6 +25,7 @@
             {% include 'include/form.html' %}
 
             <button type="submit" class="btn btn-success">Add Another Accessory!</button>
+            <a class="btn btn-success" href="{% url 'create_custom_accessory' %}">Create Custom Accessory</a>
             <a class="btn btn-success" href="{% url 'SD_locations' %}">Finished</a>
 
           </form>

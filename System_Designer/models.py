@@ -80,10 +80,11 @@ class Accessory(models.Model):
     """
 
     name = models.CharField(max_length=30)
-    draw_volts = models.IntegerField()
-    draw_amps = models.IntegerField()
-    draw_watts = models.IntegerField()
-    alternating_current = models.BooleanField()
+    draw_voltage = models.DecimalField(max_digits=10, decimal_places=4, verbose_name='Voltage')
+    draw_amperage = models.DecimalField(max_digits=10, decimal_places=4, verbose_name='Amps')
+    draw_watts = models.DecimalField(max_digits=10, decimal_places=4, verbose_name='Watts')
+    is_Ac = models.BooleanField(default=False, verbose_name='AC Load')
+    user_custom = models.ForeignKey(Customer, blank=True, null=True, related_name='custom_accessories')
 
     def __str__(self):
         return self.name
@@ -163,20 +164,15 @@ class LoadAccessory(models.Model):
     accessory = models.ForeignKey(Accessory) #name
     estimated_usage = models.IntegerField() #usage as time in hrs/day
     quantity = models.IntegerField()
-    drawVoltage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Voltage')
-    drawAmperage = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Amps')
-    drawWatts = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name='Watts')
-    isAc = models.BooleanField(default=False, verbose_name='AC Load')
 
     def __str__(self):
         return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
 
-<<<<<<< HEAD
-    #### Parameters for a custom accessory 
+
+    #### Parameters for a custom accessory
     #drawVolts
     #drawAmps
-=======
->>>>>>> Bdev
+
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.

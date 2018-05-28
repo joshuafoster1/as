@@ -9,7 +9,12 @@ class PowerProductionForm(forms.ModelForm):
 class LoadAccessoryForm(forms.ModelForm):
     class Meta:
         model = LoadAccessory
-        fields = ['accessory', 'estimated_usage', 'quantity', 'drawVoltage', 'drawAmperage', 'drawWatts', 'isAc']
+        fields = ['accessory', 'estimated_usage', 'quantity']
+    def __init__(self, *args, **kwargs):
+        user_pk = kwargs.pop('user_pk')
+        super(LoadAccessoryForm, self).__init__(*args, **kwargs)
+        self.fields['accessory'].queryset =Accessory.objects.filter(user_custom=None)|Accessory.objects.filter(user_custom__pk=user_pk)
+
 
 class ProfileForm(forms.ModelForm):
     class Meta:
@@ -25,7 +30,7 @@ class CreateDesignProfileForm(forms.ModelForm):
         model = DesignProfile
         fields = ['name', 'system_level']
 
-class CustomAccessoryForm(forms.Form):
+class CustomAccessoryForm(forms.ModelForm):
     class Meta:
         model = Accessory
-        fields = ['name','draw_watts', 'draw_amps', 'draw_volts', 'alternating_current']
+        fields = ['name','draw_watts', 'draw_amperage', 'draw_voltage', 'is_Ac']

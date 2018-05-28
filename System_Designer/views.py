@@ -35,20 +35,35 @@ def SD_load(request):
     connect_to_load = customer.current_design_profile
 
     if request.method == 'POST':
-        form = LoadAccessoryForm(request.POST)
+        form = LoadAccessoryForm(request.POST,user_pk = customer.pk)
         if form.is_valid():
             load_form = form.save(commit=False)
             load_form.load, created = Load.objects.get_or_create(design_profile=DesignProfile.objects.get(name=connect_to_load))
             load_form.save()
             return redirect('SD_load')
     else:
-        form = LoadAccessoryForm()
+        form = LoadAccessoryForm(user_pk = customer.pk)
 
     table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
     table = AccessoryTable(table_data)
     RequestConfig(request).configure(table)
 
     return render(request, 'System_Designer/sd_load.html', {'table': table, 'test':'test','form': form})
+
+def create_custom_accessory(request):
+    customer = get_customer(request)
+
+    if request.method == 'POST':
+        form = CustomAccessoryForm(request.POST)
+        if form.is_valid():
+            custom_form = form.save(commit=False)
+            custom_form.user_custom = customer
+            custom_form.save()
+            return redirect('SD_load')
+    else:
+        form = CustomAccessoryForm()
+    return render(request, 'System_Designer/custom_accessory.html', {'test':'test','form': form})
+
 
 def SD_preferences(request):
     form = 'test'

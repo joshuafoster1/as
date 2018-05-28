@@ -9,4 +9,6 @@ urlpatterns=[
     url(r'^recommendation/$', views.SD_recomendation, name="SD_recommendation"),
     url(r'^locations/$', views.SD_locations, name="SD_locations"),
     url(r'^createDP/$', views.create_DP, name = 'create_DP'),
+
+    url(r'^customAccesory/$', views.create_custom_accessory, name = 'create_custom_accessory'),
 ]
