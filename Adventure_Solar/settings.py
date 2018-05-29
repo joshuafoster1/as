@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'System_Designer',
     'import_export',
     'django_tables2',
+    'django_pandas',
     'accounts',
 ]
 

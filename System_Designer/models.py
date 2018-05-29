@@ -2,8 +2,10 @@
 from __future__ import unicode_literals
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse, reverse_lazy
-# import pandas as pd
-# import numpy as np
+import pandas as pd
+import numpy as np
+from django_pandas.io import read_frame
+from django_pandas.managers import DataFrameManager
 from django.db import models
 
 # Create your models here.
@@ -37,6 +39,61 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.user.username
+
+    def battery_selection(self):
+        '''
+        take peak load and max load parameters and determine the Battery bank
+        to meet customer needsself.
+        initial selection of batteries based on SystemLevel. With these batteries
+        model them out in a dataframe and look for min cost/weight/adequate Ah capacity.
+        '''
+        def get_corrected_bank(row_value, load, batt_num):
+            """
+            takes in initial number of batteries and outputs corrected battery bank Capacity
+            based on actual estimated rate of draw.
+            """
+            actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * row_value['ahCapacity'])/20))
+            #print('actual_cRate', actual_cRate)
+            new_batt_capacity = CRateTable.objects.filter(c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
+            #print(new_batt_capacity, 'new Batt')
+            return float(new_batt_capacity) * batt_num
+
+        def batteries_needed(row_value):
+            """
+            Calculate the number of batteries needed for input battery.
+
+            for use on apply() method on dataframe to create 'count' and 'corrected bank size'
+            column.
+            """
+            load = dict(Load.objects.get(design_profile = self.current_design_profile).get_accessory_amp_calcs())
+             # load = {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'bank_init': batt_bank_init}
+            # if row_value['type'] == 'Li-ion':
+            #     min_batt_bank = load['autonomous']/ 0.99
+            # else:
+
+            min_batt_bank = load['autonomous']/ 0.5
+            #print('min:',min_batt_bank)
+
+            batt_num = np.ceil(min_batt_bank/row_value['ahCapacity'])
+            #print('batt num: ', batt_num)
+            corrected_bank = get_corrected_bank(row_value, load, batt_num)
+            #print('corrected:', corrected_bank)
+
+            while corrected_bank < min_batt_bank:
+                batt_num += 1
+                corrected_bank = get_corrected_bank(row_value, load, batt_num)
+
+            return int(batt_num) #[row_value['weight']*batt_num, row_value['cost']*batt_num] # can add cost per ah, cost at needed ah
+
+
+        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity'])
+        batteries['count'] = batteries.apply(lambda row: batteries_needed(row), axis=1)
+        batteries['total cost'] = batteries['price'] * batteries['count']
+        batteries['total wieght']= batteries['weight'] * batteries['count']
+        return {'df': batteries, 'columns': batteries.columns}
+
+
+
 class UserDesignProfile(models.Model):
     """
     This model holds in it's profile name value the current profile the
@@ -51,22 +108,6 @@ class UserDesignProfile(models.Model):
         #batteryMonitoringSystem -- bool does this have a battery monitor
         #systemLevel -- Good, better, best; Silver, Gold, PLATNUM (this will effect cost directly)
 
-
-    def battery_selection(self):
-        '''
-        take peak load and max load parameters and determine the Battery bank
-        to meet customer needsself.
-        initial selection of batteries based on SystemLevel. With these batteries
-        model them out in a dataframe and look for min cost/weight/adequate Ah capacity.
-        '''
-        def batteries_needed(row_value):
-            """
-            for use on apply() method on dataframe to create 'count' and 'corrected bank size'
-            column.
-            """
-
-
-        #df[['count', 'corrected bank size']] = df.apply(lambda row: batteries_needed(row), axis=1)
 
     def panel_selection(self):
         pass
@@ -137,12 +178,12 @@ class Load(models.Model):
 
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
-    days_autonomous = models.IntegerField()
+    days_autonomous = models.IntegerField(default=3)
 
     def __str__(self):
-        return self.design_profile.profile_name.name + " Load"
+        return self.design_profile.name + " Load"
 
-    def get_accessory_amp_calcs(self, ):
+    def get_accessory_amp_calcs(self, inverter_effic = 0.9 ):
         '''
         Take all accesories and calculate the peak load potential for the system.
         Calculates the total amp*hours for all accessories to be used on the system.
@@ -160,16 +201,18 @@ class Load(models.Model):
 
         peak_amps = 0
         dc_daily_Ah = 0
-        ac_daily_Ah = 0
-        for accessory in accesories:
-            peak_amps += accessory.accessory.amps * accessory.quantity
-            if accessory.accessory.alternating_current:
-                ac_daily_Ah +=accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
+        ac_daily_watts = 0
+        for accessory in accessories:
+            peak_amps += accessory.accessory.draw_amperage * accessory.quantity
+            if accessory.accessory.is_Ac:
+                ac_daily_watts +=accessory.accessory.draw_watts * accessory.estimated_usage * accessory.quantity
             else:
-                daily_Ah += accessory.accessory.amps * accessory.estimated_usage * accessory.quantity
-        daily_Ah = flt(ac_daily_Ah) * 120 / .9 + dc_daily_Ah
+                dc_daily_Ah += accessory.accessory.draw_amperage * accessory.estimated_usage * accessory.quantity
 
-        return {'peak_amps': peak_amps, 'daily_AH':daily_Ah}
+        daily_Ah = (float(ac_daily_watts) / 12) / inverter_effic + float(dc_daily_Ah)
+        autonomous = daily_Ah * self.days_autonomous
+
+        return {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'autonomous': autonomous}
 
 
     def estimated_recharge_potential(self):
@@ -191,7 +234,7 @@ class LoadAccessory(models.Model):
     quantity = models.IntegerField()
 
     def __str__(self):
-        return self.load.design_profile.profile_name.name + ' ' + self.accessory.name
+        return self.load.design_profile.name + ' ' + self.accessory.name
 
 
     #### Parameters for a custom accessory
@@ -220,7 +263,7 @@ class Product(models.Model):
     ### and create a better table structure.
 
     #Create the primary product class that holds all of the BASIC and universal information
-    category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
+    # category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
     name = models.CharField(max_length=200, db_index=True)
     brand = models.CharField(max_length=200)
     model = models.CharField(max_length=200)
@@ -243,6 +286,7 @@ class Product(models.Model):
 
     #Now creating subclasses which inherit all attributes from Product class
     #Add product type specific attributes
+
 class batteryProduct(Product):
 
     ahCapacity = models.PositiveIntegerField()
@@ -255,9 +299,18 @@ class batteryProduct(Product):
     chargingTempCompensation = models.DecimalField(max_digits=4, decimal_places=2)
     terminalType = models.CharField(max_length=200)
 
+    objects = DataFrameManager()
 
     def __str__(self):
         return self.name
+
+class CRateTable(models.Model):
+    battery = models.ForeignKey(batteryProduct, related_name= 'c_rates')
+    c_rate = models.IntegerField()
+    ah_capacity = models.DecimalField(max_digits=6, decimal_places=2)
+
+    def __str__(self):
+        return self.battery.name +' C rate: ' + str(self.c_rate)
 
 class moduleProduct(Product):
 

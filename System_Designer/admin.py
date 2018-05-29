@@ -52,3 +52,11 @@ class SystemLevelAdmin(ImportExportModelAdmin):
 @admin.register(Customer)
 class CustomerAdmin(ImportExportModelAdmin):
     pass
+
+@admin.register(CRateTable)
+class CRateTableAdmin(ImportExportModelAdmin):
+    pass
+
+@admin.register(Product)
+class ProductAdmin(ImportExportModelAdmin):
+    pass

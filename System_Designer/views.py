@@ -33,7 +33,7 @@ def SDhome(request):
 def SD_load(request):
     customer = get_customer(request)
     connect_to_load = customer.current_design_profile
-
+    customer.battery_selection()
     if request.method == 'POST':
         form = LoadAccessoryForm(request.POST,user_pk = customer.pk)
         if form.is_valid():
@@ -44,11 +44,14 @@ def SD_load(request):
     else:
         form = LoadAccessoryForm(user_pk = customer.pk)
 
+    batteries = customer.battery_selection()
+    batteries_dict = batteries['df'].to_dict('records')
+    table2 = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column()) for key in batteries_dict[0].keys()])
     table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
     table = AccessoryTable(table_data)
     RequestConfig(request).configure(table)
 
-    return render(request, 'System_Designer/sd_load.html', {'table': table, 'test':'test','form': form})
+    return render(request, 'System_Designer/sd_load.html', {'table': table, 'table2':table2, 'test':'test','form': form})
 
 def create_custom_accessory(request):
     customer = get_customer(request)
