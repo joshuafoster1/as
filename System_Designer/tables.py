@@ -3,6 +3,10 @@ from .models import *
 from django_tables2.utils import A
 
 
+class NumberFormatColumn(tables.Column):
+    def render(self, value, record):
+        value = ( record.atrribute)
+        return value.attribute
 
 
 class AccessoryTable(tables.Table):

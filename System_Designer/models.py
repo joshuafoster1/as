@@ -2,7 +2,8 @@
 from __future__ import unicode_literals
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse, reverse_lazy
-
+# import pandas as pd
+# import numpy as np
 from django.db import models
 
 # Create your models here.
@@ -54,9 +55,18 @@ class UserDesignProfile(models.Model):
     def battery_selection(self):
         '''
         take peak load and max load parameters and determine the Battery bank
-        to meet customer needs
+        to meet customer needsself.
+        initial selection of batteries based on SystemLevel. With these batteries
+        model them out in a dataframe and look for min cost/weight/adequate Ah capacity.
         '''
-        pass
+        def batteries_needed(row_value):
+            """
+            for use on apply() method on dataframe to create 'count' and 'corrected bank size'
+            column.
+            """
+
+
+        #df[['count', 'corrected bank size']] = df.apply(lambda row: batteries_needed(row), axis=1)
 
     def panel_selection(self):
         pass
@@ -80,7 +90,6 @@ class Accessory(models.Model):
     Custom accessories contain Customer ForeignKey to identify the accessor to the
     customer.
     """
-
     name = models.CharField(max_length=30)
     draw_voltage = models.DecimalField(max_digits=10, decimal_places=4, verbose_name='Voltage')
     draw_amperage = models.DecimalField(max_digits=10, decimal_places=4, verbose_name='Amps')
@@ -96,8 +105,11 @@ class PowerProduction(models.Model):
     """
     Profile Attributes that contribute to recharging the system.
     """
+    design_profile = models.ForeignKey(DesignProfile, related_name='power_production')
     winter_camping = models.BooleanField() #default no?
     vehicular_moves = models.IntegerField() #directly tied to "isolator"
+    sunlight_hours = models.IntegerField()
+    insolation_multiplyer = models.IntegerField()
     #isolator -- boolean (does it charge while driving)
     #alternatorAmps -- output of the alternator (tied to isolator)
     #solar_panel -- this is gonna be the selected panel thats producing power
@@ -110,6 +122,12 @@ class PowerProduction(models.Model):
     def __str__(self):
         return str(self.total())
 
+class PanelMounting(models.Model):
+    """
+    allow for multiple panel mounting areas that are tied to power production or design profile?
+    """
+
+    pass
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
 #all of the accessories and things like winter camping(time of year), location(latitude), and....maybe thats it?
 class Load(models.Model):
@@ -124,7 +142,7 @@ class Load(models.Model):
     def __str__(self):
         return self.design_profile.profile_name.name + " Load"
 
-    def get_accessory_amp_calcs(self):
+    def get_accessory_amp_calcs(self, ):
         '''
         Take all accesories and calculate the peak load potential for the system.
         Calculates the total amp*hours for all accessories to be used on the system.
@@ -133,6 +151,9 @@ class Load(models.Model):
 
         BD - this will be used primarily to calculate if the battery bank can handle a full blown draw (dont want to
         exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
+
+        TODO: The '.9 ' value is efficiency and should be modifiable based on inverter
+        select inverter based on overall AC peak draw
         '''
 
         accessories = list(LoadAccessory.objects.filter(load=self))
