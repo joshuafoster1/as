@@ -54,7 +54,7 @@ class Customer(models.Model):
             """
             actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * row_value['ahCapacity'])/20))
             #print('actual_cRate', actual_cRate)
-            new_batt_capacity = CRateTable.objects.filter(c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
+            new_batt_capacity = CRateTable.objects.filter(battery__name=row_value['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
             #print(new_batt_capacity, 'new Batt')
             return float(new_batt_capacity) * batt_num
 
@@ -82,15 +82,19 @@ class Customer(models.Model):
             while corrected_bank < min_batt_bank:
                 batt_num += 1
                 corrected_bank = get_corrected_bank(row_value, load, batt_num)
+                #print('min:',min_batt_bank)
+                #print('corrected:', corrected_bank)
 
             return int(batt_num) #[row_value['weight']*batt_num, row_value['cost']*batt_num] # can add cost per ah, cost at needed ah
 
-
+        # if Load.objects.get(design_profile = self.current_design_profile).exists():
         batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity'])
         batteries['count'] = batteries.apply(lambda row: batteries_needed(row), axis=1)
         batteries['total cost'] = batteries['price'] * batteries['count']
         batteries['total wieght']= batteries['weight'] * batteries['count']
         return {'df': batteries, 'columns': batteries.columns}
+        # else:
+        #     return None
 
 
 
