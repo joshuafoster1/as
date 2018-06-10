@@ -21,7 +21,6 @@ class ProfileForm(forms.ModelForm):
         model = UserDesignProfile
         fields = ['profile_name']
     def __init__(self, *args, **kwargs):
-        user_pk = kwargs.pop('user_pk')
         super(ProfileForm, self).__init__(*args, **kwargs)
         self.fields['profile_name'].queryset =DesignProfile.objects.filter(user=user_pk)
 
@@ -34,3 +33,10 @@ class CustomAccessoryForm(forms.ModelForm):
     class Meta:
         model = Accessory
         fields = ['name','draw_watts', 'draw_amperage', 'draw_voltage', 'is_Ac']
+
+class SystemDesignerPreferencesForm(forms.ModelForm):
+
+    class Meta:
+        model = Preferences
+        fields = ['days_autonomous', 'isolator', 'alternatorAmps', 'winterCamping', 'batteryMonitoringSystem']
+#my gut tells me this needs to be linked to the UserDesignProfile here

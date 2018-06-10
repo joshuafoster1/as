@@ -2,6 +2,28 @@ import django_tables2 as tables
 from .models import *
 from django_tables2.utils import A
 
+# def test(value):
+#     if value <1:
+#         return "table-grad-green-1"
+#     elif value < 2:
+#         return "table-grad-green-2"
+#     elif value < 3:
+#         return "table-grad-green-3"
+#     elif value < 4:
+#         return "table-grad-green-4"
+#     elif value < 5:
+#         return "table-grad-green-5"
+#     elif value < 6:
+#         return "table-grad-green-6"
+#     elif value < 7:
+#         return "table-grad-green-7"
+#     elif value < 8:
+#         return "table-grad-green-8"
+#     elif value < 9:
+#         return "table-grad-green-9"
+#     else:
+#         return "table-grad-green-10"
+
 
 class NumberFormatColumn(tables.Column):
     def render(self, value, record):
@@ -22,6 +44,9 @@ class AccessoryTable(tables.Table):
         model = LoadAccessory
         template_name = 'django_tables2/bootstrap-responsive.html'
         fields = ['accessory', 'estimated_usage', 'quantity']
+
+
 class BatteryCountTable(tables.Table):
     class Meta:
         template_name = 'django_tables2/bootstrap-responsive.html'
+#        attrs={'class': ''}

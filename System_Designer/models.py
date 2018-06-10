@@ -71,7 +71,7 @@ class Customer(models.Model):
             #     min_batt_bank = load['autonomous']/ 0.99
             # else:
 
-            min_batt_bank = load['autonomous']/ 0.5  #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
+            min_batt_bank = load['autonomous']/ (row_value['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
             #print('min:',min_batt_bank)
 
             batt_num = np.ceil(min_batt_bank/row_value['ahCapacity'])
@@ -88,7 +88,7 @@ class Customer(models.Model):
             return int(batt_num) #[row_value['weight']*batt_num, row_value['cost']*batt_num] # can add cost per ah, cost at needed ah
 
         # if Load.objects.get(design_profile = self.current_design_profile).exists():
-        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity'])
+        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge'])
         batteries['count'] = batteries.apply(lambda row: batteries_needed(row), axis=1)
         batteries['total cost'] = batteries['price'] * batteries['count']
         batteries['total weight']= batteries['weight'] * batteries['count']
@@ -196,7 +196,7 @@ class Load(models.Model):
         Battery storage must be at minimum 2 x daily_Ah, but likely higher.
 
         BD - this will be used primarily to calculate if the battery bank can handle a full blown draw (dont want to
-        exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
+        exceed inverter size. (Inverter is ac only, may need to track those specifics of ac vs dc)
 
         TODO: The '.9 ' value is efficiency and should be modifiable based on inverter
         select inverter based on overall AC peak draw
@@ -250,6 +250,25 @@ class LoadAccessory(models.Model):
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.
     #accessoryAc_dc -- this will be the other output of the class.
+
+'''
+This is where global preferences should be stored.
+'''
+class Preferences(models.Model):
+
+    design_profile = models.ForeignKey(DesignProfile, related_name='preferences') 
+    days_autonomous = models.IntegerField(default=3)
+    isolator = models.BooleanField(default=False)
+    alternatorAmps = models.FloatField(default=90)
+    winterCamping = models.BooleanField(default=False)
+    batteryMonitoringSystem = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Preference'
+        verbose_name_plural = "Preferences"
+
+    def __str__(self):
+        return self.design_profile.name + ' Preferences'
 
 class Category(models.Model):
     name = models.CharField(max_length=200, db_index=True)

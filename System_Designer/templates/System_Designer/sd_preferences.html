@@ -4,7 +4,17 @@
 <li class="breadcrumb-item active">Where we are</li>
 {% endblock %}
 {% block content %}
-<p>{{test}}</p>
+
+<h5 class="mb-5">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include 'include/form.html' %}
+
+      <button type="submit" class="btn btn-success">Update Preferences</button>
+
+    </form>
+</h5>
+
 {% include 'sdNavbar.html' %}
 {% endblock %}
 

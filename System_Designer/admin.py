@@ -60,3 +60,7 @@ class CRateTableAdmin(ImportExportModelAdmin):
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
     pass
+
+@admin.register(Preferences)
+class PrefferenceAdmin(ImportExportModelAdmin):
+    pass

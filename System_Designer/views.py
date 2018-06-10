@@ -53,6 +53,33 @@ def SD_load(request):
 
     return render(request, 'System_Designer/sd_load.html', {'table': table, 'table2':table2, 'test':'test','form': form})
 
+def SD_recommendation(request):
+    '''
+    BD- attempted to mimic the load page to return the table appropriately and work backwords, but i'm missing something.
+    if the tables are added in the sd_recommendations.html file, it breaks
+    '''
+    customer = get_customer(request)
+    connect_to_load = customer.current_design_profile
+    customer.battery_selection()
+    if request.method == 'POST':
+        form = LoadAccessoryForm(request.POST,user_pk = customer.pk)
+        if form.is_valid():
+            load_form = form.save(commit=False)
+            load_form.load, created = Load.objects.get_or_create(design_profile=DesignProfile.objects.get(name=connect_to_load))
+            load_form.save()
+            return redirect('SD_load')
+    else:
+        form = LoadAccessoryForm(user_pk = customer.pk)
+
+    batteries = customer.battery_selection()
+    batteries_dict = batteries['df'].to_dict('records')
+    table2 = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column()) for key in batteries_dict[0].keys()])
+    table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
+    table = AccessoryTable(table_data)
+    RequestConfig(request).configure(table)
+
+    return render(request, 'System_Designer/sd_recommendation.html', {'table': table, 'table2':table2, 'test':'test','form': form})
+
 def create_custom_accessory(request):
     customer = get_customer(request)
 
@@ -69,9 +96,19 @@ def create_custom_accessory(request):
 
 
 def SD_preferences(request):
-    form = 'test'
+    customer = get_customer(request)
+    connect_to_load = customer.current_design_profile
 
+    if request.method == 'POST':
+        form = SystemDesignerPreferencesForm(request.POST)
+        if form.is_valid():
+            pref_form = form.save(commit=False)
+            pref_form.save()
+            return redirect('SD_preferences')
+    else:
+        form = SystemDesignerPreferencesForm()
     return render(request, 'System_Designer/sd_preferences.html', {'test':'test', 'form': form})
+
 
 def SD_install(request):
     form = 'test'
