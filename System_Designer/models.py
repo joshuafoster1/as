@@ -21,6 +21,7 @@ class SystemLevel(models.Model):
     def __str__(self):
         return self.level
 
+
 class DesignProfile(models.Model):
     """
     This model is the container/tag that relates all associated elements for
@@ -33,7 +34,13 @@ class DesignProfile(models.Model):
 
     def __str__(self):
         return self.name
+
+
 class Customer(models.Model):
+    """
+    Assignment holder for the user's current working design profile
+    """
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     current_design_profile = models.ForeignKey(DesignProfile, null=True, blank=True)
 
@@ -52,6 +59,7 @@ class Customer(models.Model):
             takes in initial number of batteries and outputs corrected battery bank Capacity
             based on actual estimated rate of draw.
             """
+
             actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * row_value['ahCapacity'])/20))
             print('actual_cRate', actual_cRate)
             new_batt_capacity = CRateTable.objects.filter(battery__name=row_value['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
@@ -62,15 +70,18 @@ class Customer(models.Model):
             """
             Calculate the number of batteries needed for input battery.
 
-            for use on apply() method on dataframe to create 'count' and 'corrected bank size'
+            for use on apply() method on dataframe (batteries) to create 'count' and 'corrected bank size'
             column.
             """
+
+             # load values = {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'bank_init': batt_bank_init}
             load = dict(Load.objects.get(design_profile = self.current_design_profile).get_accessory_amp_calcs())
-             # load = {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'bank_init': batt_bank_init}
+
             # if row_value['type'] == 'Li-ion':
             #     min_batt_bank = load['autonomous']/ 0.99
             # else:
 
+            # battery bank size based on depth of discharge
             min_batt_bank = load['autonomous']/ (row_value['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
             #print('min:',min_batt_bank)
 
@@ -89,7 +100,7 @@ class Customer(models.Model):
 
         # if Load.objects.get(design_profile = self.current_design_profile).exists():
         batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge'])
-        batteries['count'] = batteries.apply(lambda row: batteries_needed(row), axis=1)
+        batteries['count'] = batteries.apply(lambda row_value: batteries_needed(row_value), axis=1)
         batteries['total cost'] = batteries['price'] * batteries['count']
         batteries['total weight']= batteries['weight'] * batteries['count']
         return {'df': batteries, 'columns': batteries.columns}
@@ -97,29 +108,7 @@ class Customer(models.Model):
         #     return None
 
 
-
-class UserDesignProfile(models.Model):
-    """
-    This model holds in it's profile name value the current profile the
-    user is working on
-    """
-    user = models.ForeignKey(User,on_delete=models.CASCADE)
-    profile_name = models.ForeignKey(DesignProfile)
-
-    #profile name -- we need to asign a name for the specific profile eg van, 4runner, etc...
-    #load profile -- there will have to be an independent object with the loads for this vehicle. (a culmination of accessories)
-    #variables for "options" set under the "preferences page. e.g. follows
-        #batteryMonitoringSystem -- bool does this have a battery monitor
-        #systemLevel -- Good, better, best; Silver, Gold, PLATNUM (this will effect cost directly)
-
-
-    def panel_selection(self):
-        pass
-
-    def __str__(self):
-        return self.profile_name.name
 ###add lookup table for vehivcle type rough dimesion
-
 class VehicleInstall(models.Model):
     design_profile=models.ForeignKey(DesignProfile, related_name='vehicle_install')
     vehicle_type=models.CharField(max_length=30) # make a foriegn key for table
@@ -128,6 +117,8 @@ class VehicleInstall(models.Model):
 
     def __str__(self):
         return self.vehicle_type
+
+
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
     """
@@ -144,6 +135,7 @@ class Accessory(models.Model):
 
     def __str__(self):
         return self.name
+
 
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
@@ -167,12 +159,14 @@ class PowerProduction(models.Model):
     def __str__(self):
         return str(self.total())
 
+
 class PanelMounting(models.Model):
     """
     allow for multiple panel mounting areas that are tied to power production or design profile?
     """
 
     pass
+
 
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
 #all of the accessories and things like winter camping(time of year), location(latitude), and....maybe thats it?
@@ -228,6 +222,7 @@ class Load(models.Model):
         BD -- It may be wise to think about this more as "estimated recharge potential". Capacity will be a static amount based on battery selection.
         '''
 
+
 ### linking table for many to many relationship
 class LoadAccessory(models.Model):
     """
@@ -251,12 +246,13 @@ class LoadAccessory(models.Model):
     #def accessoryDraw -- this should be the primary output of the class.
     #accessoryAc_dc -- this will be the other output of the class.
 
-'''
-This is where global preferences should be stored.
-'''
-class Preferences(models.Model):
 
-    design_profile = models.ForeignKey(DesignProfile, related_name='preferences') 
+class Preferences(models.Model):
+    '''
+    This is where global preferences should be stored.
+    '''
+
+    design_profile = models.ForeignKey(DesignProfile, related_name='preferences')
     days_autonomous = models.IntegerField(default=3)
     isolator = models.BooleanField(default=False)
     alternatorAmps = models.FloatField(default=90)
@@ -324,7 +320,7 @@ class batteryProduct(Product):
     chargingTempCompensation = models.FloatField()
     optimalDepthOfDischarge = models.FloatField(default=50)
     terminalType = models.CharField(max_length=200)
-    
+
 
     objects = DataFrameManager()
 

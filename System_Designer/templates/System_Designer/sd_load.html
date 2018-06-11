@@ -15,9 +15,9 @@
   To start, Simply select a preset item, or make your own.
 </p>
 
-{% render_table table2 %}
+{% if table is not None %}
   {% render_table table %}
-
+{% endif %}
 
 <h3 class="mb-5">
           <form method="post" novalidate>

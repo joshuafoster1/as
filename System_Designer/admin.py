@@ -37,10 +37,6 @@ class PowerProductionAdmin(ImportExportModelAdmin):
 class VehicleInstallAdmin(ImportExportModelAdmin):
     pass
 
-@admin.register(UserDesignProfile)
-class UserDesignProfileAdmin(ImportExportModelAdmin):
-    pass
-
 @admin.register(DesignProfile)
 class DesignProfileAdmin(ImportExportModelAdmin):
     pass

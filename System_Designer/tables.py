@@ -38,7 +38,7 @@ class AccessoryTable(tables.Table):
     amperage = tables.Column(accessor = 'accessory.draw_amperage')
     watts = tables.Column(accessor = 'accessory.draw_watts')
     is_Ac = tables.Column(accessor = 'accessory.is_Ac')
-    selection = tables.CheckBoxColumn(accessor='pk', orderable = True) # allow the removal of an accessory
+    remove = tables.LinkColumn('remove_accesory', text='Remove', args=[A('pk')], orderable=False, empty_values=(), attrs={'td':{"class": "btn"}})
 
     class Meta:
         model = LoadAccessory
@@ -47,6 +47,9 @@ class AccessoryTable(tables.Table):
 
 
 class BatteryCountTable(tables.Table):
+    """
+    Table columns are dynmanically created in view based on model function output.
+    """
     class Meta:
         template_name = 'django_tables2/bootstrap-responsive.html'
 #        attrs={'class': ''}
