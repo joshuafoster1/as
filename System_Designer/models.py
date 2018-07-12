@@ -8,6 +8,7 @@ from django_pandas.io import read_frame
 from django_pandas.managers import DataFrameManager
 from django.db import models
 
+from .linear_regression import predict_from_regression
 # Create your models here.
 
 ### design profile allows for multiple profiles per user
@@ -61,9 +62,25 @@ class Customer(models.Model):
             """
 
             actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * row_value['ahCapacity'])/20))
+
+            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=row_value['name']).order_by('c_rate'))
+
+            input_array = c_rate_table['c_rate']
+            output = c_rate_table['ah_capacity']
+            print(input_array, output)
             print('actual_cRate', actual_cRate)
+
+###perform check to see if predictin is higher than lookup: choose prediction if true
+            if len(input_array) > 2:
+                capacity_prediction = predict_from_regression(input_array, output, actual_cRate)
+                print(capacity_prediction, 'from regression')
+
             new_batt_capacity = CRateTable.objects.filter(battery__name=row_value['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
             print(new_batt_capacity, 'new Batt')
+            try:
+                print('difference: ', new_batt_capacity - capacity_prediction)
+            except:
+                pass
             return float(new_batt_capacity) * batt_num
 
         def batteries_needed(row_value):
@@ -76,10 +93,6 @@ class Customer(models.Model):
 
              # load values = {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'bank_init': batt_bank_init}
             load = dict(Load.objects.get(design_profile = self.current_design_profile).get_accessory_amp_calcs())
-
-            # if row_value['type'] == 'Li-ion':
-            #     min_batt_bank = load['autonomous']/ 0.99
-            # else:
 
             # battery bank size based on depth of discharge
             min_batt_bank = load['autonomous']/ (row_value['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
@@ -309,7 +322,8 @@ class Product(models.Model):
     #Add product type specific attributes
 
 class batteryProduct(Product):
-
+    # I need a integer voltage field for lookup purposes,
+    # if not I cna lookup based on a range of voltages, just need to know ranges -Josh
     ahCapacity = models.PositiveIntegerField()
     operatingVoltage = models.FloatField()
     operatingTempMax = models.FloatField()

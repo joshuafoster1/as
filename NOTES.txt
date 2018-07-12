@@ -1,5 +1,4 @@
 accessory
-  - need to be able to create custom accessories
   - edit table to allow modification of accessory
 
 location
@@ -16,7 +15,7 @@ Module prodution
      - panel voltage
      - winter camping
   - base items off needs from usage calculations
-  
+
 Production needs to keep battery capacity above 50%
   - production vs draw (must keep batteries from ever dropping below 50%, think about night loading)
 

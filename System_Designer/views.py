@@ -170,7 +170,7 @@ def SD_summary(request):
             return redirect('SD_load')
     else:
         form = ProfileForm(user_pk = customer.user.pk)
-    return render(request, 'System_Designer/sd_summary.html', {'form': form})
+    return render(request, 'System_Designer/sd_summary.html', {'form': form, 'design_profile': customer.current_design_profile})
 @login_required
 def create_DP(request):
     """

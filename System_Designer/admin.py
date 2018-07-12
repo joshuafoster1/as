@@ -51,7 +51,7 @@ class CustomerAdmin(ImportExportModelAdmin):
 
 @admin.register(CRateTable)
 class CRateTableAdmin(ImportExportModelAdmin):
-    pass
+    list_display = ['battery', 'c_rate', 'ah_capacity']
 
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
