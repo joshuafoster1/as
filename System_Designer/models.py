@@ -8,7 +8,7 @@ from django_pandas.io import read_frame
 from django_pandas.managers import DataFrameManager
 from django.db import models
 
-from .linear_regression import predict_from_regression
+from .linear_regression import predict_from_regression, predict_stat
 # Create your models here.
 
 ### design profile allows for multiple profiles per user
@@ -55,35 +55,38 @@ class Customer(models.Model):
         initial selection of batteries based on SystemLevel. With these batteries
         model them out in a dataframe and look for min cost/weight/adequate Ah capacity.
         '''
-        def get_corrected_bank(row_value, load, batt_num):
+        def check_batt_count(op_voltage, batt_num):
+            if op_voltage >= 12.0 and batt_num > 3:
+                return 0
+
+            elif op_voltage ==6.0 and batt_num >6:
+                return 0
+
+            elif op_voltage == 2.0 and batt_num > 18:
+                return 0
+
+            else:
+                return batt_num
+
+        def get_corrected_bank(battery_intance, load, batt_num):
             """
             takes in initial number of batteries and outputs corrected battery bank Capacity
             based on actual estimated rate of draw.
             """
 
-            actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * row_value['ahCapacity'])/20))
+            actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * battery_intance['ahCapacity'])/20))
 
-            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=row_value['name']).order_by('c_rate'))
-
-            input_array = c_rate_table['c_rate']
-            output = c_rate_table['ah_capacity']
-            print(input_array, output)
-            print('actual_cRate', actual_cRate)
+            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=battery_intance['name']).order_by('c_rate'))
 
 ###perform check to see if predictin is higher than lookup: choose prediction if true
-            if len(input_array) > 2:
-                capacity_prediction = predict_from_regression(input_array, output, actual_cRate)
-                print(capacity_prediction, 'from regression')
+            # if len(input_array) > 2:
+            #     capacity_prediction = predict_from_regression(c_rate_table['c_rate'], c_rate_table['ah_capacity'], actual_cRate)
 
-            new_batt_capacity = CRateTable.objects.filter(battery__name=row_value['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity#['ah_capacity']
-            print(new_batt_capacity, 'new Batt')
-            try:
-                print('difference: ', new_batt_capacity - capacity_prediction)
-            except:
-                pass
-            return float(new_batt_capacity) * batt_num
+            new_batt_capacity = CRateTable.objects.filter(battery__name=battery_intance['name'], c_rate__lte=actual_cRate).order_by('c_rate').last()#['ah_capacity']
 
-        def batteries_needed(row_value):
+            return float(new_batt_capacity.ah_capacity) * batt_num
+
+        def batteries_needed(battery_intance):
             """
             Calculate the number of batteries needed for input battery.
 
@@ -95,27 +98,34 @@ class Customer(models.Model):
             load = dict(Load.objects.get(design_profile = self.current_design_profile).get_accessory_amp_calcs())
 
             # battery bank size based on depth of discharge
-            min_batt_bank = load['autonomous']/ (row_value['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
-            #print('min:',min_batt_bank)
+            min_batt_bank = load['autonomous']/ (battery_intance['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
 
-            batt_num = np.ceil(min_batt_bank/row_value['ahCapacity'])
-            #print('batt num: ', batt_num)
-            corrected_bank = get_corrected_bank(row_value, load, batt_num)
-            #print('corrected:', corrected_bank)
+            batt_num = np.ceil(min_batt_bank/battery_intance['ahCapacity'])
+
+            corrected_bank = get_corrected_bank(battery_intance, load, batt_num)
 
             while corrected_bank < min_batt_bank:
                 batt_num += 1
-                corrected_bank = get_corrected_bank(row_value, load, batt_num)
-                #print('min:',min_batt_bank)
-                #print('corrected:', corrected_bank)
+                corrected_bank = get_corrected_bank(battery_intance, load, batt_num)
 
-            return int(batt_num) #[row_value['weight']*batt_num, row_value['cost']*batt_num] # can add cost per ah, cost at needed ah
+            if battery_intance['operatingVoltage'] == 6.0:
+                batt_num = batt_num * 2
+
+            elif battery_intance['operatingVoltage'] ==2.0:
+                batt_num = batt_num * 6
+
+            batt_num = check_batt_count(battery_intance['operatingVoltage'], batt_num)
+
+            return int(batt_num) #[battery_intance['weight']*batt_num, battery_intance['cost']*batt_num] # can add cost per ah, cost at needed ah
 
         # if Load.objects.get(design_profile = self.current_design_profile).exists():
-        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge'])
-        batteries['count'] = batteries.apply(lambda row_value: batteries_needed(row_value), axis=1)
+        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge', 'operatingVoltage'])
+        batteries['count'] = batteries.apply(lambda battery_intance: batteries_needed(battery_intance), axis=1)
         batteries['total cost'] = batteries['price'] * batteries['count']
         batteries['total weight']= batteries['weight'] * batteries['count']
+        batteries.drop(columns=['optimalDepthOfDischarge', 'weight', 'price'], inplace = True)
+        batteries = batteries[batteries['count'] !=0]
+        #batteries.order_by(price)[:3]
         return {'df': batteries, 'columns': batteries.columns}
         # else:
         #     return None
@@ -155,11 +165,26 @@ class PowerProduction(models.Model):
     """
     Profile Attributes that contribute to recharging the system.
     """
+    REGION1 = 1
+    REGION2 = 2
+    REGION3 = 3
+    REGION4 = 4
+    REGION5 = 5
+    REGION6 = 6
+
+    REGIONS = (
+            (REGION1, 'Region 1'),
+            (REGION2, 'Region 2'),
+            (REGION3, 'Region 3'),
+            (REGION4, 'Region 4'),
+            (REGION5, 'Region 5'),
+            (REGION6, 'Region 6')
+            )
     design_profile = models.ForeignKey(DesignProfile, related_name='power_production')
-    winter_camping = models.BooleanField() #default no?
-    vehicular_moves = models.IntegerField() #directly tied to "isolator"
-    sunlight_hours = models.IntegerField()
-    insolation_multiplyer = models.IntegerField()
+    winter_camping = models.BooleanField(default=False) #default no?
+    vehicular_moves = models.IntegerField(default=0) #directly tied to "isolator"
+    sunlight_hours = models.IntegerField(default=8)
+    insolation_multiplyer = models.IntegerField(choices = REGIONS, default=1)
     #isolator -- boolean (does it charge while driving)
     #alternatorAmps -- output of the alternator (tied to isolator)
     #solar_panel -- this is gonna be the selected panel thats producing power
@@ -179,6 +204,26 @@ class PanelMounting(models.Model):
     """
 
     pass
+
+
+class Preferences(models.Model):
+    '''
+    This is where global preferences should be stored.
+    '''
+
+    design_profile = models.ForeignKey(DesignProfile, related_name='preferences')
+    days_autonomous = models.IntegerField(default=3)
+    isolator = models.BooleanField(default=False)
+    alternatorAmps = models.FloatField(default=90)
+    winterCamping = models.BooleanField(default=False)
+    batteryMonitoringSystem = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Preference'
+        verbose_name_plural = "Preferences"
+
+    def __str__(self):
+        return self.design_profile.name + ' Preferences'
 
 
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
@@ -222,7 +267,8 @@ class Load(models.Model):
                 dc_daily_Ah += accessory.accessory.draw_amperage * accessory.estimated_usage * accessory.quantity
 
         daily_Ah = (ac_daily_watts / 12) / inverter_effic + dc_daily_Ah
-        autonomous = daily_Ah * self.days_autonomous
+        days_autonomous = Preferences.objects.get(design_profile = self.design_profile).days_autonomous
+        autonomous = daily_Ah * days_autonomous
 
         return {'peak_watts': peak_watts, 'daily_AH':daily_Ah, 'autonomous': autonomous}
 
@@ -259,25 +305,6 @@ class LoadAccessory(models.Model):
     #def accessoryDraw -- this should be the primary output of the class.
     #accessoryAc_dc -- this will be the other output of the class.
 
-
-class Preferences(models.Model):
-    '''
-    This is where global preferences should be stored.
-    '''
-
-    design_profile = models.ForeignKey(DesignProfile, related_name='preferences')
-    days_autonomous = models.IntegerField(default=3)
-    isolator = models.BooleanField(default=False)
-    alternatorAmps = models.FloatField(default=90)
-    winterCamping = models.BooleanField(default=False)
-    batteryMonitoringSystem = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = 'Preference'
-        verbose_name_plural = "Preferences"
-
-    def __str__(self):
-        return self.design_profile.name + ' Preferences'
 
 class Category(models.Model):
     name = models.CharField(max_length=200, db_index=True)

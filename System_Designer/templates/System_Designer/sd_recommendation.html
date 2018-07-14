@@ -10,23 +10,8 @@
 <p>The following will display the best options for your system design
 </p>
 
-{% render_table table2 %}
+{% render_table table %}
 
-<h3 class="mb-5">
-          <form method="post" novalidate>
-            {% csrf_token %}
-            {% include 'include/form.html' %}
-
-            <button type="submit" class="btn btn-success">Add Another Accessory!</button>
-            <a class="btn btn-success" href="{% url 'create_custom_accessory' %}">Create Custom Accessory</a>
-            <a class="btn btn-success" href="{% url 'SD_locations' %}">Finished</a>
-
-          </form>
-</h3>
 
 {% include 'sdNavbar.html' %}
 {% endblock %}
-
-//it may be a good idea to actually build a separate app for the load profile. Because we're gonna be adding, removing and developing items,
-//it may make more sense to just break it out. Use an "admin" like view for editing that information. Offer an easy portal for customers
-//to directly edit their "database" of items, but reference our pre-populated one.

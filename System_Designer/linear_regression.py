@@ -1,47 +1,52 @@
 import numpy as np
-
-
-# data for 200NC battery
-
+# import matplotlib.pyplot as plt
+#
+#
+# # data for 200NC battery
+#
 # y = np.array([103,
 #     # 120,
 #     # 132,
 #     # 139.6,
-#     # 145.5,
+#     145.5,
 #     # 158.4,
 #     # 168,
 #     178,
 #     # 181.4,
 #     # 189.6,
-#     200])
+#     200
+#     ])
 #
 # x = np.array([1,
 #     # 2,
 #     # 3,
 #     # 4,
-#     # 5,
+#     5,
 #     # 8,
 #     # 12,
 #     20,
 #     # 24,
 #     # 48,
-#     100])
-
+#     100
+#     ])
+# plt.plot(x, y, 'gx')
 def create_training_set(x):
     """
     Setup training data for a squre root function. Returns X matrix
     """
     func = ''
-    if x.max() <100:
+    if x.max() <10:
         x2 = np.sqrt(x)
         func = 'sqrt'
+        X = np.column_stack([np.ones(len(x)), x, x2,])
+
     else:
-        x2 = np.reciprocal(x)# np.sqrt(x)
+        x2 = np.sqrt(x)
+        x3 = np.reciprocal(np.sqrt(x))# np.sqrt(x)
         func = 'recip'
-    X = np.column_stack([np.ones(len(x)), x, x2])
+        X = np.column_stack([np.ones(len(x)), x, x3])
 
     return (X, func)
-
 
 
 def normal_equation(X, y):
@@ -59,7 +64,7 @@ def predict(x, theta, func):
         z = np.array([1, x, np.sqrt(x)])#, np.sqrt(c_rate), ])
 
     elif func == 'recip':
-        z = np.array([1, x, np.reciprocal(x)])#, np.sqrt(c_rate), np.sqrt(x)])
+        z = np.array([1, x, np.reciprocal(np.sqrt(x))])#, np.sqrt(c_rate), np.sqrt(x)])
 
     return sum(z*theta)
 
@@ -73,7 +78,29 @@ def predict_from_regression(input, output, predict_value):
     theta = normal_equation(training_set, output)
     prediction = predict(predict_value, theta, function)
     return prediction
+
+def predict_stat(c_rate1, c_rate2, actual_cRate, ah_prediction):
+    ah_range = c_rate2.ah_capacity - c_rate1.ah_capacity
+    c_rate_range = c_rate2.c_rate - c_rate1.c_rate
+    ah_norm = (ah_prediction-c_rate1.ah_capacity) / ah_range
+    c_rate_norm = (actual_cRate - c_rate1.c_rate) / c_rate_range
+    stat = ah_norm / c_rate_norm
+
+    return stat
+
 # c_rate = 40
+#
+# regression_line = np.array([])
+# for i in range(1,100):
+#     regression_line = np.append(regression_line, predict_from_regression(x, y, i))
+#
+# recip = np.array([])
+# for i in range(1,100):
+#     recip = np.append(recip, np.reciprocal(i))
+#
+# # plt.plot(np.array(range(1, 100)), recip, 'b-')
+# plt.plot(np.array(range(1, 100)), regression_line, 'ro')
+# plt.show()
 #
 # print(predict_from_regression(x, y, c_rate))
 #

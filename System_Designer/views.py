@@ -90,24 +90,13 @@ def SD_recommendation(request):
     customer = get_customer(request)
     connect_to_load = customer.current_design_profile
     customer.battery_selection()
-    if request.method == 'POST':
-        form = LoadAccessoryForm(request.POST,user_pk = customer.pk)
-        if form.is_valid():
-            load_form = form.save(commit=False)
-            load_form.load, created = Load.objects.get_or_create(design_profile=DesignProfile.objects.get(name=connect_to_load))
-            load_form.save()
-            return redirect('SD_load')
-    else:
-        form = LoadAccessoryForm(user_pk = customer.pk)
 
     batteries = customer.battery_selection()
     batteries_dict = batteries['df'].to_dict('records')
-    table2 = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column()) for key in batteries_dict[0].keys()])
-    table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
-    table = AccessoryTable(table_data)
+    table = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column(orderable=True)) for key in batteries_dict[0].keys()])
     RequestConfig(request).configure(table)
 
-    return render(request, 'System_Designer/sd_recommendation.html', {'table': table, 'table2':table2, 'test':'test','form': form})
+    return render(request, 'System_Designer/sd_recommendation.html', {'table': table, 'test':'test'})
 @login_required
 def create_custom_accessory(request):
     """
@@ -171,6 +160,7 @@ def SD_summary(request):
     else:
         form = ProfileForm(user_pk = customer.user.pk)
     return render(request, 'System_Designer/sd_summary.html', {'form': form, 'design_profile': customer.current_design_profile})
+
 @login_required
 def create_DP(request):
     """
@@ -205,8 +195,19 @@ def SD_recomendation(request):
 def SD_locations(request):
     """
     """
+    customer = get_customer(request)
+    current_DP = customer.current_design_profile
+    power_production, created = PowerProduction.objects.get_or_create(design_profile = current_DP)
+    if request.method == 'POST':
+        form = PowerProductionForm(request.POST, instance = power_production)
+        if form.is_valid():
+            pref_form = form.save(commit=False)
+            pref_form.save()
+            return redirect('SD_preferences')
+    else:
+        form = PowerProductionForm(instance = power_production)
 
-    return render(request, 'System_Designer/sd_locations.html', {'test':'test'})
+    return render(request, 'System_Designer/sd_locations.html', {'test':'test', 'form': form})
 @login_required
 def custom_accessory(request):
     """

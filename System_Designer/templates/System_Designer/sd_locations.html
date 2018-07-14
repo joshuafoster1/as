@@ -1,10 +1,24 @@
 {% extends 'base.html' %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item">Where we came from</li>
 <li class="breadcrumb-item active">Where we are</li>
 {% endblock %}
 {% block content %}
 <p>{{test}}</p>
+
+<h3 class="mb-5">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include 'include/form.html' %}
+
+            <button type="submit" class="btn btn-success">Add Another Accessory!</button>
+            <a class="btn btn-success" href="{% url 'create_custom_accessory' %}">Create Custom Accessory</a>
+            <a class="btn btn-success" href="{% url 'SD_locations' %}">Finished</a>
+
+          </form>
+</h3>
+
 {% include 'sdNavbar.html' %}
 {% endblock %}
 
