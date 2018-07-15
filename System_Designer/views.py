@@ -51,7 +51,6 @@ def SD_load(request):
 
     customer = get_customer(request)
     connect_to_load = customer.current_design_profile
-    # customer.battery_selection()
     if request.method == 'POST':
         form = LoadAccessoryForm(request.POST,user_pk = customer.pk)
         if form.is_valid():
@@ -62,9 +61,6 @@ def SD_load(request):
     else:
         form = LoadAccessoryForm(user_pk = customer.pk)
 
-    # batteries = customer.battery_selection()
-    # batteries_dict = batteries['df'].to_dict('records')
-    # table2 = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column()) for key in batteries_dict[0].keys()])
     table_data = LoadAccessory.objects.all().filter(load__design_profile__name=connect_to_load)
     table = AccessoryTable(table_data)
     RequestConfig(request).configure(table)
@@ -93,7 +89,11 @@ def SD_recommendation(request):
 
     batteries = customer.battery_selection()
     batteries_dict = batteries['df'].to_dict('records')
-    table = BatteryCountTable(batteries_dict, extra_columns=[(key, tables.Column(orderable=True)) for key in batteries_dict[0].keys()])
+    table = BatteryCountTable(
+        batteries_dict,
+        extra_columns=[(
+            key,
+            tables.Column(orderable=True)) for key in batteries['columns']])
     RequestConfig(request).configure(table)
 
     return render(request, 'System_Designer/sd_recommendation.html', {'table': table, 'test':'test'})
@@ -131,7 +131,7 @@ def SD_preferences(request):
         if form.is_valid():
             pref_form = form.save(commit=False)
             pref_form.save()
-            return redirect('SD_preferences')
+            return redirect('SD_install')
     else:
         form = SystemDesignerPreferencesForm(instance = preferences)
     return render(request, 'System_Designer/sd_preferences.html', {'test':'test', 'form': form})
@@ -158,7 +158,7 @@ def SD_summary(request):
             customer.save()
             return redirect('SD_load')
     else:
-        form = ProfileForm(user_pk = customer.user.pk)
+        form = ProfileForm(user_pk = customer.user.pk, initial = {'current_design_profile':customer.current_design_profile})
     return render(request, 'System_Designer/sd_summary.html', {'form': form, 'design_profile': customer.current_design_profile})
 
 @login_required

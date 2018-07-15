@@ -76,15 +76,19 @@ class Customer(models.Model):
 
             actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * battery_intance['ahCapacity'])/20))
 
-            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=battery_intance['name']).order_by('c_rate'))
+            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=battery_intance['name']).order_by('-c_rate'))
 
 ###perform check to see if predictin is higher than lookup: choose prediction if true
-            # if len(input_array) > 2:
-            #     capacity_prediction = predict_from_regression(c_rate_table['c_rate'], c_rate_table['ah_capacity'], actual_cRate)
+            capacity = c_rate_table[c_rate_table['c_rate'] <= actual_cRate].iloc[0]['ah_capacity']
+            if len(c_rate_table) > 2:
+                predict_capacity = predict_from_regression(c_rate_table['c_rate'], c_rate_table['ah_capacity'], actual_cRate)
+                if capacity < predict_capacity:
+                    capacity = predict_capacity
 
-            new_batt_capacity = CRateTable.objects.filter(battery__name=battery_intance['name'], c_rate__lte=actual_cRate).order_by('c_rate').last()#['ah_capacity']
 
-            return float(new_batt_capacity.ah_capacity) * batt_num
+            # capacity = CRateTable.objects.filter(battery__name=battery_intance['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity
+
+            return float(capacity) * batt_num
 
         def batteries_needed(battery_intance):
             """
@@ -118,15 +122,41 @@ class Customer(models.Model):
 
             return int(batt_num) #[battery_intance['weight']*batt_num, battery_intance['cost']*batt_num] # can add cost per ah, cost at needed ah
 
+        def set_system_level(cost_array):
+            mn = cost_array.min()
+            mx = cost_array.max()
+            print(mx, mn)
+            system_range = (mx - mn)/3
+            silver_gold = mn + system_range
+            gold_plat = mn + 2 * system_range
+            return (silver_gold, gold_plat)
+
+        def create_system_level(cost, boundary):
+            if cost <= boundary[0]:
+                return 'Silver'
+            elif boundary[0] < cost <= boundary[1]:
+                return 'Gold'
+            elif boundary[1] < cost:
+                return 'Plaitunum'
+
         # if Load.objects.get(design_profile = self.current_design_profile).exists():
         batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge', 'operatingVoltage'])
         batteries['count'] = batteries.apply(lambda battery_intance: batteries_needed(battery_intance), axis=1)
-        batteries['total cost'] = batteries['price'] * batteries['count']
         batteries['total weight']= batteries['weight'] * batteries['count']
+        batteries['total cost'] = batteries['price'] * batteries['count']
+
+        boundaries = set_system_level(batteries['total cost'])
+        batteries['system level'] = batteries['total cost'].apply(lambda x: create_system_level(x, boundaries))
+
         batteries.drop(columns=['optimalDepthOfDischarge', 'weight', 'price'], inplace = True)
+
+        # if battery count exceeds upper bound for voltage, count is set to 0
         batteries = batteries[batteries['count'] !=0]
-        #batteries.order_by(price)[:3]
-        return {'df': batteries, 'columns': batteries.columns}
+
+        columns = ['system level','name', 'ahCapacity', 'operatingVoltage', 'count', 'total weight',
+               'total cost']
+
+        return {'df': batteries, 'columns': columns}
         # else:
         #     return None
 
