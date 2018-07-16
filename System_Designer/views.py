@@ -97,6 +97,8 @@ def SD_recommendation(request):
     RequestConfig(request).configure(table)
 
     return render(request, 'System_Designer/sd_recommendation.html', {'table': table, 'test':'test'})
+
+
 @login_required
 def create_custom_accessory(request):
     """
@@ -115,6 +117,7 @@ def create_custom_accessory(request):
     else:
         form = CustomAccessoryForm()
     return render(request, 'System_Designer/custom_accessory.html', {'test':'test','form': form})
+
 
 @login_required
 def SD_preferences(request):
@@ -136,6 +139,7 @@ def SD_preferences(request):
         form = SystemDesignerPreferencesForm(instance = preferences)
     return render(request, 'System_Designer/sd_preferences.html', {'test':'test', 'form': form})
 
+
 @login_required
 def SD_install(request):
     """
@@ -143,6 +147,8 @@ def SD_install(request):
 
     form = 'test'
     return render(request, 'System_Designer/sd_install.html', {'test':'test', 'form': form})
+
+
 @login_required
 def SD_summary(request):
     """
@@ -185,12 +191,16 @@ def create_DP(request):
     else:
         form = CreateDesignProfileForm()
     return render(request, 'System_Designer/create_DP.html', {'form': form})
+
+
 @login_required
 def SD_recomendation(request):
     """
     """
 
     return render(request, 'System_Designer/sd_recommendation.html', {'test':'test'})
+
+
 @login_required
 def SD_locations(request):
     """
@@ -208,6 +218,8 @@ def SD_locations(request):
         form = PowerProductionForm(instance = power_production)
 
     return render(request, 'System_Designer/sd_locations.html', {'test':'test', 'form': form})
+
+
 @login_required
 def custom_accessory(request):
     """
