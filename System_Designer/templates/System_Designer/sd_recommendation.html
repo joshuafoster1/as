@@ -1,11 +1,17 @@
 {% extends 'base.html' %}
+{% load django_tables2 %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item">Where we came from</li>
 <li class="breadcrumb-item active">Where we are</li>
 {% endblock %}
 {% block content %}
-<p>{{test}}</p>
+<h1>Welcome to the Load Summary!</h1>
+<p>The following will display the best options for your system design
+</p>
+
+{% render_table table %}
+
+
 {% include 'sdNavbar.html' %}
 {% endblock %}
-
-//this is to be the page that displays the several options based on the load profile, travel habits, available products, etc.

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h3 class="mb-5">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include 'include/form.html' %}
+
+            <button type="submit" class="btn btn-success">Create Accessory!</button>
+            <a class="btn btn-success" href="{% url 'SD_load' %}">Return to Load Profile</a>
+
+          </form>
+</h3>
+
+{% include 'sdNavbar.html' %}
+{% endblock %}

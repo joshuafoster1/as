@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block breadcrumb %}
-<li class="breadcrumb-item">Don't think we need these</li>
+<li class="breadcrumb-item">Don't think we need these "we can turn this into a link or get rid of it -Josh"</li>
 <li class="breadcrumb-item active">In the system designer</li>
 {% endblock %}
 {% block content %}
-<p>{{test}}</p>
+<h3>Your Current design profile: {{design_profile}}</h3>
 <h2>This is the "Start" page for the system designer</h2>
 <h4>These are the things that should be done here</h4>
 <ul class="list-group">
@@ -27,6 +27,18 @@
         tbc...
     </li>
 </ul>
+<div>
+  <h3 class="mb-5">
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {% include 'include/form.html' %}
+
+              <button type="submit" class="btn btn-success">Confirm</button>
+              <a class="btn btn-success" href="{% url 'create_DP' %}">Create New Profile</a>
+              <a class="btn btn-success" href="{% url 'SD_load' %}">Finished</a>
+
+            </form>
+  </h3></div>
 
 
 {% include 'sdNavbar.html' %}

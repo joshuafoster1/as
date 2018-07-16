@@ -1,10 +1,23 @@
 {% extends 'base.html' %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item">Where we came from</li>
 <li class="breadcrumb-item active">Where we are</li>
 {% endblock %}
 {% block content %}
 <p>{{test}}</p>
+<p>This be where all the crazy goes down. Select your region.</p>
+
+<h3 class="mb-5">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include 'include/form.html' %}
+
+            <button type="submit" class="btn btn-success">Update Location</button>
+
+          </form>
+</h3>
+
 {% include 'sdNavbar.html' %}
 {% endblock %}
 

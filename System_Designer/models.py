@@ -2,53 +2,219 @@
 from __future__ import unicode_literals
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse, reverse_lazy
-
+import pandas as pd
+import numpy as np
+from django_pandas.io import read_frame
+from django_pandas.managers import DataFrameManager
 from django.db import models
 
+from .linear_regression import predict_from_regression, predict_stat
 # Create your models here.
 
 ### design profile allows for multiple profiles per user
+
+class SystemLevel(models.Model):
+    """
+    Lookup table
+    """
+    level = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.level
+
+
 class DesignProfile(models.Model):
+    """
+    This model is the container/tag that relates all associated elements for
+    a system
+    """
+
+    name = models.CharField(max_length=50)
+    system_level = models.ForeignKey(SystemLevel)
     user = models.ForeignKey(User,on_delete=models.CASCADE)
 
-    profile_name = models.CharField(max_length=50)
-    system_level = models.CharField(max_length=10)
+    def __str__(self):
+        return self.name
 
-    #profile name -- we need to asign a name for the specific profile eg van, 4runner, etc...
-    #load profile -- there will have to be an independent object with the loads for this vehicle. (a culmination of accessories)
-    #variables for "options" set under the "preferences page. e.g. follows
-        #batteryMonitoringSystem -- bool does this have a battery monitor
-        #systemLevel -- Good, better, best; Silver, Gold, PLATNUM (this will effect cost directly)
+
+class Customer(models.Model):
+    """
+    Assignment holder for the user's current working design profile
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    current_design_profile = models.ForeignKey(DesignProfile, null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
 
     def battery_selection(self):
         '''
         take peak load and max load parameters and determine the Battery bank
-        to meet customer needs
+        to meet customer needsself.
+        initial selection of batteries based on SystemLevel. With these batteries
+        model them out in a dataframe and look for min cost/weight/adequate Ah capacity.
         '''
-        pass
+        def check_batt_count(op_voltage, batt_num):
+            if op_voltage >= 12.0 and batt_num > 3:
+                return 0
 
-    def panel_selection(self):
-        pass
+            elif op_voltage ==6.0 and batt_num >6:
+                return 0
+
+            elif op_voltage == 2.0 and batt_num > 18:
+                return 0
+
+            else:
+                return batt_num
+
+        def get_corrected_bank(battery_intance, load, batt_num):
+            """
+            takes in initial number of batteries and outputs corrected battery bank Capacity
+            based on actual estimated rate of draw.
+            """
+
+            actual_cRate = 20/(((load['daily_AH']/24)*20)/((batt_num * battery_intance['ahCapacity'])/20))
+
+            c_rate_table = read_frame(CRateTable.objects.values('c_rate', 'ah_capacity').filter(battery__name=battery_intance['name']).order_by('-c_rate'))
+
+###perform check to see if predictin is higher than lookup: choose prediction if true
+            capacity = c_rate_table[c_rate_table['c_rate'] <= actual_cRate].iloc[0]['ah_capacity']
+            if len(c_rate_table) > 2:
+                predict_capacity = predict_from_regression(c_rate_table['c_rate'], c_rate_table['ah_capacity'], actual_cRate)
+                if capacity < predict_capacity:
+                    capacity = predict_capacity
+
+
+            # capacity = CRateTable.objects.filter(battery__name=battery_intance['name'], c_rate__lte=actual_cRate).order_by('c_rate').last().ah_capacity
+
+            return float(capacity) * batt_num
+
+        def batteries_needed(battery_intance):
+            """
+            Calculate the number of batteries needed for input battery.
+
+            for use on apply() method on dataframe (batteries) to create 'count' and 'corrected bank size'
+            column.
+            """
+
+             # load values = {'peak_amps': peak_amps, 'daily_AH':daily_Ah, 'bank_init': batt_bank_init}
+            load = dict(Load.objects.get(design_profile = self.current_design_profile).get_accessory_amp_calcs())
+
+            # battery bank size based on depth of discharge
+            min_batt_bank = load['autonomous']/ (battery_intance['optimalDepthOfDischarge']/100) #is this the factor to devide by for the Depth of Discharge? We should add this variable to the batteries so we can have it switch dynamically
+
+            batt_num = np.ceil(min_batt_bank/battery_intance['ahCapacity'])
+
+            corrected_bank = get_corrected_bank(battery_intance, load, batt_num)
+
+            while corrected_bank < min_batt_bank:
+                batt_num += 1
+                corrected_bank = get_corrected_bank(battery_intance, load, batt_num)
+
+            if battery_intance['operatingVoltage'] == 6.0:
+                batt_num = batt_num * 2
+
+            elif battery_intance['operatingVoltage'] ==2.0:
+                batt_num = batt_num * 6
+
+            batt_num = check_batt_count(battery_intance['operatingVoltage'], batt_num)
+
+            return int(batt_num) #[battery_intance['weight']*batt_num, battery_intance['cost']*batt_num] # can add cost per ah, cost at needed ah
+
+        def set_system_level(cost_array):
+            mn = cost_array.min()
+            mx = cost_array.max()
+            print(mx, mn)
+            system_range = (mx - mn)/3
+            silver_gold = mn + system_range
+            gold_plat = mn + 2 * system_range
+            return (silver_gold, gold_plat)
+
+        def create_system_level(cost, boundary):
+            if cost <= boundary[0]:
+                return 'Silver'
+            elif boundary[0] < cost <= boundary[1]:
+                return 'Gold'
+            elif boundary[1] < cost:
+                return 'Plaitunum'
+
+        # if Load.objects.get(design_profile = self.current_design_profile).exists():
+        batteries = batteryProduct.objects.to_dataframe(verbose=False, fieldnames = ['name', 'price', 'weight','ahCapacity','optimalDepthOfDischarge', 'operatingVoltage'])
+        batteries['count'] = batteries.apply(lambda battery_intance: batteries_needed(battery_intance), axis=1)
+        batteries['total weight']= batteries['weight'] * batteries['count']
+        batteries['total cost'] = batteries['price'] * batteries['count']
+
+        boundaries = set_system_level(batteries['total cost'])
+        batteries['system level'] = batteries['total cost'].apply(lambda x: create_system_level(x, boundaries))
+
+        batteries.drop(columns=['optimalDepthOfDischarge', 'weight', 'price'], inplace = True)
+
+        # if battery count exceeds upper bound for voltage, count is set to 0
+        batteries = batteries[batteries['count'] !=0]
+
+        columns = ['system level','name', 'ahCapacity', 'operatingVoltage', 'count', 'total weight',
+               'total cost']
+
+        return {'df': batteries, 'columns': columns}
+        # else:
+        #     return None
+
+
 ###add lookup table for vehivcle type rough dimesion
-
 class VehicleInstall(models.Model):
     design_profile=models.ForeignKey(DesignProfile, related_name='vehicle_install')
     vehicle_type=models.CharField(max_length=30) # make a foriegn key for table
     panel_type_preference = models.CharField(max_length=1)#f=fixed m=mounted b=both
     #mountingSpace = [L,W] to be used for calculating panel space
 
+    def __str__(self):
+        return self.vehicle_type
+
+
 ### unique items that will contribute to peak load
 class Accessory(models.Model):
-    accessory_name = models.CharField(max_length=30)
-    draw_volts = models.IntegerField()
-    draw_amps = models.IntegerField()
-    draw_watts = models.IntegerField()
-    ac_dc = models.BooleanField()
+    """
+    Lookup table for individual accessories. General accessories have no user ForeignKey.
+    Custom accessories contain Customer ForeignKey to identify the accessor to the
+    customer.
+    """
+    name = models.CharField(max_length=30)
+    draw_voltage = models.FloatField(verbose_name='Voltage')
+    draw_amperage = models.FloatField(verbose_name='Amps')
+    draw_watts = models.FloatField(verbose_name='Watts')
+    is_Ac = models.BooleanField(default=False, verbose_name='AC Load')
+    user_custom = models.ForeignKey(Customer, blank=True, null=True, related_name='custom_accessories')
+
+    def __str__(self):
+        return self.name
+
 
 ### unique factors that play a role determining the overall system capacity
 class PowerProduction(models.Model):
-    winter_camping = models.BooleanField() #default no?
-    vehicular_moves = models.IntegerField() #directly tied to "isolator"
+    """
+    Profile Attributes that contribute to recharging the system.
+    """
+    REGION1 = 1
+    REGION2 = 2
+    REGION3 = 3
+    REGION4 = 4
+    REGION5 = 5
+    REGION6 = 6
+
+    REGIONS = (
+            (REGION1, 'Region 1'),
+            (REGION2, 'Region 2'),
+            (REGION3, 'Region 3'),
+            (REGION4, 'Region 4'),
+            (REGION5, 'Region 5'),
+            (REGION6, 'Region 6')
+            )
+    design_profile = models.ForeignKey(DesignProfile, related_name='power_production')
+    winter_camping = models.BooleanField(default=False) #default no?
+    vehicular_moves = models.IntegerField(default=0) #directly tied to "isolator"
+    sunlight_hours = models.IntegerField(default=8)
+    insolation_multiplyer = models.IntegerField(choices = REGIONS, default=1)
     #isolator -- boolean (does it charge while driving)
     #alternatorAmps -- output of the alternator (tied to isolator)
     #solar_panel -- this is gonna be the selected panel thats producing power
@@ -56,32 +222,88 @@ class PowerProduction(models.Model):
     #generator -- this is going to have to be its own product with lots of variables to calculate on, if blank we need to ignore it.
     #solarLocation -- this is going to be a singular variable designed around this map. /static/img/solarProductionMap.jpeg the user will click their "worst case area of travel" which will just spit back a number. (covering hours/day of sunlight, and insulation)
 
+    def total(self):
+        return 'calcuted output'
+    def __str__(self):
+        return str(self.total())
+
+
+class PanelMounting(models.Model):
+    """
+    allow for multiple panel mounting areas that are tied to power production or design profile?
+    """
+
+    pass
+
+
+class Preferences(models.Model):
+    '''
+    This is where global preferences should be stored.
+    '''
+
+    design_profile = models.ForeignKey(DesignProfile, related_name='preferences')
+    days_autonomous = models.IntegerField(default=3)
+    isolator = models.BooleanField(default=False)
+    alternatorAmps = models.FloatField(default=90)
+    winterCamping = models.BooleanField(default=False)
+    batteryMonitoringSystem = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Preference'
+        verbose_name_plural = "Preferences"
+
+    def __str__(self):
+        return self.design_profile.name + ' Preferences'
 
 
 #the load functions as a "Profile" for the overall consumption of energy. Including the sum of
 #all of the accessories and things like winter camping(time of year), location(latitude), and....maybe thats it?
 class Load(models.Model):
+    """
+    Linking model for many to many relationship of accessories to the design Profile
+    """
+
     design_profile = models.ForeignKey(DesignProfile, related_name='load')
     accessories = models.ManyToManyField(Accessory, through='LoadAccessory') #for each, we want draw and ac_dc
-    days_autonomous = models.IntegerField()
+    days_autonomous = models.IntegerField(default=3)
 
+    def __str__(self):
+        return self.design_profile.name + " Load"
 
-    def peak_load(self):
+    def get_accessory_amp_calcs(self, inverter_effic = 0.9 ):
         '''
         Take all accesories and calculate the peak load potential for the system.
+        Calculates the total amp*hours for all accessories to be used on the system.
+
+        Battery storage must be at minimum 2 x daily_Ah, but likely higher.
 
         BD - this will be used primarily to calculate if the battery bank can handle a full blown draw (dont want to
-        exceed a @20hr draw rate) as well as if the inverter is of adequite size. (Inverter is ac only, may need to track those specifics of ac vs dc)
-        '''
-        pass
+        exceed inverter size. (Inverter is ac only, may need to track those specifics of ac vs dc)
 
-    def estimated_daily_Ah(self):
+        TODO: The '.9 ' value is efficiency and should be modifiable based on inverter
+        select inverter based on overall AC peak draw
         '''
-        Calculates the total amp*hours for all accessories to be used on the system.
-        '''
-        pass
 
-    def estimated_recharge_capacity(self):
+        accessories = list(LoadAccessory.objects.filter(load=self))
+
+        peak_watts = 0.0
+        dc_daily_Ah = 0.0 #this needs to be modified to a float so that a usage of less than 1hr can be used. ie 1.5hrs. I tried swapping a few things in your formulae but you've got some downstream issues if you convert this to a float.
+        ac_daily_watts = 0.0
+        for accessory in accessories:
+            peak_watts += accessory.accessory.draw_watts * accessory.quantity #this is actually an unnecessary calculation. Peak and daily wattage will be much more relevant.
+            if accessory.accessory.is_Ac:
+                ac_daily_watts +=accessory.accessory.draw_watts * accessory.estimated_usage * accessory.quantity
+            else:
+                dc_daily_Ah += accessory.accessory.draw_amperage * accessory.estimated_usage * accessory.quantity
+
+        daily_Ah = (ac_daily_watts / 12) / inverter_effic + dc_daily_Ah
+        days_autonomous = Preferences.objects.get(design_profile = self.design_profile).days_autonomous
+        autonomous = daily_Ah * days_autonomous
+
+        return {'peak_watts': peak_watts, 'daily_AH':daily_Ah, 'autonomous': autonomous}
+
+
+    def estimated_recharge_potential(self):
         '''
         estimate the likely recharge needs based on latitude, winter camoing potential
         vehicular moves.
@@ -89,36 +311,224 @@ class Load(models.Model):
         BD -- It may be wise to think about this more as "estimated recharge potential". Capacity will be a static amount based on battery selection.
         '''
 
+
 ### linking table for many to many relationship
 class LoadAccessory(models.Model):
+    """
+    Linking table for many to many relationship of accessories to load.
+    """
     load = models.ForeignKey(Load)
     accessory = models.ForeignKey(Accessory) #name
-    estimated_usage = models.IntegerField() #usage as time in hrs/day
+    estimated_usage = models.FloatField() #usage as time in hrs/day
     quantity = models.IntegerField()
 
+    def __str__(self):
+        return self.load.design_profile.name + ' ' + self.accessory.name
+
+
+    #### Parameters for a custom accessory
     #drawVolts
     #drawAmps
+
     #drawWatts these three will need to be able to be 2 of 3 input. then using W = V*A we can calculate the format we need.
     #number of units
     #def accessoryDraw -- this should be the primary output of the class.
     #accessoryAc_dc -- this will be the other output of the class.
 
-# class Product(models.Model):    (is it wise to make this globally instead of within the system designer as i'll also be using it nearly exclusively for the store webApp?--we'll talk about how this works)
-    #category [battery, panel, solarChargeController, inverter, charger, inverter/charger]
-        #battery [ahCapacity, voltage, operatingTempRange, maxChargeCurrent, floatChargeVoltage, equalizationVoltage, temperatureCompensationFactor(for charging), terminalType, weight, dimensions[L, W, H] ]
 
-        #module(panel) [peakPower(watts), nominalVoltage, maxVoltage, maxCurrent(amps), openCircuitVoltage, shortCircuitCurrent, maxSysVoltage, moduleEffeciency, dimensions[L, W, H], weight, connectorType, numberOfCells, operatingTemperatureRange[min, max]]
+class Category(models.Model):
+    name = models.CharField(max_length=200, db_index=True)
 
-        #solarChargeController(sCC?) [conversionType(PWM or MPPT), maxBattCurrent, loadCurrentRating, openCircuitVoltage, peakEffieciency, batteryVoltageRange[min, max], voltageAccuracy, selfConsumption, surgeProtection, operatingTemperatureRange[min, max]
-        #                               weight, dimensions[L, W, H], wireSizeIn, wireSizeOut, batteryTemperatureSensor, chargeModes[(dynamic list of modes?)]warranty, mfgPartNumber
-        #                               accessories[groundFaultProtection, remoteTemperatureSensor, remoteMeter, communicationAdapter, meterHub, relayDriver, ]]
+    class Meta:
+        ordering = ('name',)
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
 
-        #inverter [inverter(bool y/n), outputWattsContinuous, outputWattsSurge, outputCurrentContinuous, outputVoltageRange[min, max], outputFreqency, outputWaveform, effeciencyFullLoad, effeciencyPeak, noLoadDraw, offModeDraw, acInputVoltageRange[min, max]
-        #           acTransferRelayAmps, inputVoltageRange[min, max] batteryVoltageNominal, lowBatteryCutout[low, mid, high] acRecepticles, operatingTemperatureRange[min, max] weight, dimensions[L, W, H] warranty, mfgPartNumber ]
+    def __str__(self):
+        return self.name
 
-        #charger [charger(bool y/n), dcOuputVoltage, outputAmperageContinuous, dcOutputVoltageFullLoad, maxPowerOutput(watts), inputVoltageRange[min, max], inputVoltageFrequency, maxAcCurrent, effenciency, operatingTemperatureRange[min, max] weight, dimensions[L, W, H] ]
+class Product(models.Model):
+    ### We are going to need to normalize this model/table.
+    ### THis means we need to hash out the details of how to organize the information
+    ### and create a better table structure.
 
-        #inverterCharger
+    #Create the primary product class that holds all of the BASIC and universal information
+    # category = models.ForeignKey(Category, related_name='ProductType') #[battery, panel, solarChargeController, inverter, charger, inverter/charger]
+    name = models.CharField(max_length=200, db_index=True)
+    brand = models.CharField(max_length=200)
+    model = models.CharField(max_length=200)
+    #image = models.ImageField(upload_to='#', blank=True)
+    description = models.TextField(blank=True)
+    price = models.FloatField()
+    stock = models.PositiveIntegerField()
+    available = models.BooleanField(default=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    weight = models.FloatField()
+    length = models.FloatField()
+    width = models.FloatField()
+    height = models.FloatField()
+    warranty = models.TextField(blank=True)
+    mfgPartNumber = models.CharField(max_length=200)
+    specSheet = models.CharField(max_length=300, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+    #Now creating subclasses which inherit all attributes from Product class
+    #Add product type specific attributes
+
+class batteryProduct(Product):
+    # I need a integer voltage field for lookup purposes,
+    # if not I cna lookup based on a range of voltages, just need to know ranges -Josh
+    ahCapacity = models.PositiveIntegerField()
+    operatingVoltage = models.FloatField()
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+    chargingCurrentMax = models.FloatField()
+    chargingCurrentFloat = models.FloatField()
+    chargingCurrentEqualize = models.FloatField()
+    chargingTempCompensation = models.FloatField()
+    optimalDepthOfDischarge = models.FloatField(default=50)
+    terminalType = models.CharField(max_length=200)
+
+
+    objects = DataFrameManager()
+
+    def __str__(self):
+        return self.name
+
+class CRateTable(models.Model):
+    battery = models.ForeignKey(batteryProduct, related_name= 'c_rates')
+    c_rate = models.FloatField()
+    ah_capacity = models.FloatField()
+
+    def __str__(self):
+        return self.battery.name +' C rate: ' + str(self.c_rate)
+
+class moduleProduct(Product):
+
+    peakOutputWatts = models.IntegerField()
+    operatingVoltage = models.FloatField()
+    peakOutputVoltage = models.FloatField()
+    peakOutputCurrent = models.FloatField()
+    openCircuitVoltage = models.FloatField()
+    shortCircuitCurrent = models.FloatField()
+    maxSystemVoltage = models.FloatField()
+    moduleEffeciency = models.FloatField()
+    connectorType = models.CharField(max_length=200)
+    numberOfCells = models.IntegerField()
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+    wireSizeOut = models.FloatField()
+
+    def __str__(self):
+        return self.name
+
+class chargeControllerProduct(Product):
+
+    conversionType = models.CharField(max_length=200)
+    maxBattCurrent = models.FloatField()
+    loadCurrentRating = models.FloatField()
+    openCircuitVoltage = models.FloatField()
+    peakEffieciency = models.FloatField()
+    batteryVoltageMin = models.FloatField()
+    batteryVoltageMax = models.FloatField()
+    voltageAccuracy = models.FloatField()
+    selfConsumption = models.FloatField()
+    surgeProtection = models.BooleanField(default=True)
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+    wireSizeIn = models.FloatField()
+    wireSizeOut = models.FloatField()
+    batteryTemperatureSensor = models.BooleanField(default=True)
+    chargeModes = models.CharField(max_length=200)
+
+    #accessories[groundFaultProtection, remoteTemperatureSensor, remoteMeter, communicationAdapter, meterHub, relayDriver ]
+
+class inverterProduct(Product):
+
+    outputWattsContinuous = models.FloatField()
+    outputWattsSurge = models.FloatField()
+    outputCurrentContinuous = models.FloatField()
+    outputVoltageMin = models.FloatField()
+    outputVoltageMax = models.FloatField()
+    outputFreqency = models.FloatField()
+    outputWaveform = models.CharField(max_length=200)
+    effeciencyFullLoad = models.FloatField()
+    effeciencyPeak = models.FloatField()
+    noLoadDraw = models.FloatField()
+    offModeDraw = models.FloatField()
+    acInputVoltageMin = models.FloatField()
+    acInputVoltageMax = models.FloatField()
+    acTransferRelayAmps = models.FloatField()
+    inputVoltageMin = models.FloatField()
+    inputVoltageMax = models.FloatField()
+    batteryVoltageNominal = models.FloatField()
+    lowBatteryCutoutLow = models.FloatField()
+    lowBatteryCutoutMid = models.FloatField()
+    lowBatteryCutoutHigh = models.FloatField()
+    acRecepticles = models.BooleanField(default=True)
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+
+
+    def __str__(self):
+        return self.name
+
+class chargerProduct(Product):
+
+    dcOuputVoltage = models.FloatField()
+    outputAmperageContinuous = models.FloatField()
+    dcOutputVoltageFullLoad = models.FloatField()
+    maxPowerOutput = models.FloatField()
+    inputVoltageMin = models.FloatField()
+    inputVoltageMax = models.FloatField()
+    inputVoltageFrequency = models.IntegerField()
+    maxAcCurrent = models.FloatField()
+    effeciency = models.FloatField()
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+
+    def __str__(self):
+        return self.name
+
+class inverterChargerProduct(Product):
+
+    outputWattsContinuous = models.FloatField()
+    outputWattsSurge = models.FloatField()
+    outputCurrentContinuous = models.FloatField()
+    outputVoltageMin = models.FloatField()
+    outputVoltageMax = models.FloatField()
+    outputFreqency = models.FloatField()
+    outputWaveform = models.CharField(max_length=200)
+    effeciencyFullLoad = models.FloatField()
+    effeciencyPeak = models.FloatField()
+    noLoadDraw = models.FloatField()
+    offModeDraw = models.FloatField()
+    acInputVoltageMin = models.FloatField()
+    acInputVoltageMax = models.FloatField()
+    acTransferRelayAmps = models.FloatField()
+    inputVoltageMin = models.FloatField()
+    inputVoltageMax = models.FloatField()
+    batteryVoltageNominal = models.FloatField()
+    lowBatteryCutoutLow = models.FloatField()
+    lowBatteryCutoutMid = models.FloatField()
+    lowBatteryCutoutHigh = models.FloatField()
+    acRecepticles = models.BooleanField(default=True)
+    operatingTempMax = models.FloatField()
+    operatingTempMin = models.FloatField()
+    dcOuputVoltage = models.FloatField()
+    outputAmperageContinuous = models.FloatField()
+    dcOutputVoltageFullLoad = models.FloatField()
+    maxPowerOutput = models.FloatField()
+    inputVoltageFrequency = models.IntegerField()
+    maxAcCurrent = models.FloatField()
+    effeciency = models.FloatField()
+
+    def __str__(self):
+        return self.name
+
 
 
 ### TODO: need preferences table plus potential ref tables

@@ -12,6 +12,9 @@ body{
     font-family: Oswald;
     font-size: 25px;
 }
+html {margin-bottom: 65px}
+
+p {padding:2em; border: 1px dashed #CCC}
 /*
 .main-nav{background-color: #14302e;}
 .main-nav .navbar-brand{color: #aae3ee}

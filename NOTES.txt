@@ -1,0 +1,29 @@
+accessory
+  - edit table to allow modification of accessory
+
+location
+  - the map
+      -gives a multiplier value for amount of solar energy in geographical locations
+      -click map get value
+Battery capacity
+  - total storage required vs peak discharge rates
+      - discharge rates
+
+Module prodution
+  - solar insolation factor (power from the sun)
+     - panel wattage
+     - panel voltage
+     - winter camping
+  - base items off needs from usage calculations
+
+Production needs to keep battery capacity above 50%
+  - production vs draw (must keep batteries from ever dropping below 50%, think about night loading)
+
+Product Selection
+  - relationship table to see what thresholds mandate which products
+  - need to think about anchoring specific items into the build
+  - generator
+     - check if required based on parameters
+
+  - some things are derived, some will need to be checked for after design is complete,
+    some will need to be chosen
